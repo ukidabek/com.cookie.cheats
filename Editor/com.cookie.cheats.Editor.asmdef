@@ -1,0 +1,18 @@
+{
+    "name": "com.cookie.cheats.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:b880afc8aa02e45af86da6a49a4d3cf5"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
