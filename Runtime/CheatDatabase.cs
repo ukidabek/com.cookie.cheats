@@ -26,7 +26,7 @@ namespace cookie.Cheats
         
         public IReadOnlyList<CheatAttribute> Attributes { get; }
 
-        public Cheat(object target, T memberInfo)
+        protected Cheat(object target, T memberInfo)
         {
             Target = target;
             MemberInfo = memberInfo;
