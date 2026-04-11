@@ -1,0 +1,11 @@
+{
+  "name": "com.cooki.cheats",
+  "version": "1.0.1",
+  "displayName": "Cheats",
+  "description": "Cheat system",
+  "author": {
+    "name": "\u0141ukasz D\u0105bek",
+    "email": "ukidabek@gmail.com"
+  },
+  "unity": "2021.1"
+}
