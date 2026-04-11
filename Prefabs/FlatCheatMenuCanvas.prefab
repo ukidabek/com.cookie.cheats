@@ -207,6 +207,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: com.cookie.cheats::cookie.Cheats.CheatMenu
   m_cheatHandlers:
   - {fileID: 8357761175425875341, guid: f7860714a8e0a4764bb1c9cac1fffc10, type: 3}
+  - {fileID: 1905168302872129429, guid: e763bc92ac34241f8a1fc42fea92eb0c, type: 3}
   m_parent: {fileID: 7192127292297413990}
 --- !u!1 &2665543083397694880
 GameObject:
