@@ -5,8 +5,8 @@ namespace cookie.Cheats
 {
     public class PropertyCheat : ValueCheat<PropertyInfo>
     {
-        public PropertyCheat(object target, PropertyInfo propertyInfo) 
-            : base(target, propertyInfo, propertyInfo.PropertyType, propertyInfo.CanRead, propertyInfo.CanWrite)
+        public PropertyCheat(int id, object target, PropertyInfo propertyInfo) 
+            : base(id, target, propertyInfo, propertyInfo.PropertyType, propertyInfo.CanRead, propertyInfo.CanWrite)
         {
         }
 

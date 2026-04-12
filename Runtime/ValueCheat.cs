@@ -39,10 +39,10 @@ namespace cookie.Cheats
         public bool CanRead { get; }
         public bool CanWrite { get; }
         
-        protected ValueCheat(object target, T memberInfo, Type valueType, bool canRead, bool canWrite) 
-            : base(target, memberInfo)
+        protected ValueCheat(int id, object target, T memberInfo, Type valueType, bool canRead, bool canWrite) 
+            : base(id, target, memberInfo)
         {
-            if (Attributes.Count > 1)
+            if (Attributes.Length > 1)
                 throw new ArgumentException($"Value type cheat should have ony one {nameof(CheatAttribute)}!");
             
             ValueType = valueType;

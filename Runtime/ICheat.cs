@@ -7,6 +7,6 @@ namespace cookie.Cheats
         int ID { get; }
         object Target { get; }
         string Name { get; }
-        public IReadOnlyList<CheatAttribute> Attributes { get; }
+        public CheatData[] Attributes { get; }
     }
 }

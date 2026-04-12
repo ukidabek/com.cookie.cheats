@@ -5,8 +5,8 @@ namespace cookie.Cheats
 {
     public class FieldCheat : ValueCheat<FieldInfo>
     {
-        public FieldCheat(object target, FieldInfo memberInfo) 
-            : base(target, memberInfo, memberInfo.FieldType, true, true)
+        public FieldCheat(int id, object target, FieldInfo memberInfo) 
+            : base(id, target, memberInfo, memberInfo.FieldType, true, true)
         {
         }
 

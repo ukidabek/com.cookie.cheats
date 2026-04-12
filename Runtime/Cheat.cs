@@ -1,28 +1,30 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
 namespace cookie.Cheats
 {
+    [Serializable]
     public abstract class Cheat<T> : ICheat where T : MemberInfo
     {
-        private static int ChatID = 0;
-
         public int ID { get; }
         public object Target { get; }
         public string Name { get; }
 
-        public readonly T MemberInfo = null;
-        
-        public IReadOnlyList<CheatAttribute> Attributes { get; }
+        [NonSerialized] public readonly T MemberInfo = null;
 
-        protected Cheat(object target, T memberInfo)
+        public CheatData[] Attributes { get; }
+
+        protected Cheat(int id, object target, T memberInfo)
         {
             Target = target;
             MemberInfo = memberInfo;
             Name = memberInfo.Name;
-            ID = ChatID++;
-            Attributes = memberInfo.GetCustomAttributes<CheatAttribute>().ToArray();
+            ID = id;
+            Attributes = memberInfo.GetCustomAttributes<CheatAttribute>()
+                .Select(attribute => new CheatData(attribute))
+                .ToArray();
         }
     }
 }

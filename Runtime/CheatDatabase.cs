@@ -10,16 +10,16 @@ namespace cookie.Cheats
     {
         private class MemberInfoEqualityComparer : IEqualityComparer<MemberInfo>
         {
-            public bool Equals(MemberInfo x, MemberInfo y)
+            public bool Equals(MemberInfo memberInfoA, MemberInfo memberInfoB)
             {
-                if (x is null || y is null)
+                if (memberInfoA is null || memberInfoB is null)
                     return false;
 
-                return x.MetadataToken == y.MetadataToken &&
-                       x.Module == y.Module;
+                return memberInfoA.MetadataToken == memberInfoB.MetadataToken &&
+                       memberInfoA.Module == memberInfoB.Module;
             }
 
-            public int GetHashCode(MemberInfo obj) => HashCode.Combine(obj.MetadataToken, obj.Module);
+            public int GetHashCode(MemberInfo memberInfo) => HashCode.Combine(memberInfo.MetadataToken, memberInfo.Module);
         }
         
         private const BindingFlags BindingFlag = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
@@ -35,14 +35,19 @@ namespace cookie.Cheats
             }
         }
         private readonly MemberInfoEqualityComparer m_comparer = new MemberInfoEqualityComparer();
+        
         private readonly Dictionary<Type, IReadOnlyList<MemberInfo>> m_membersDictionary = new Dictionary<Type, IReadOnlyList<MemberInfo>>(30);
-        private readonly Dictionary<CheatProvider, List<ICheat>> m_chetDictionary = new Dictionary<CheatProvider, List<ICheat>>(30);
-        public IReadOnlyDictionary<CheatProvider, List<ICheat>> ChetDictionary => m_chetDictionary;
+
+        private readonly Dictionary<CheatProvider, List<ICheat>> m_providerChetDictionary = new Dictionary<CheatProvider, List<ICheat>>(30);
+        public IReadOnlyDictionary<CheatProvider, List<ICheat>> ProviderChetDictionary => m_providerChetDictionary;
+        private readonly Dictionary<int, ICheat> m_chetDictionary = new Dictionary<int, ICheat>(100);
+        public IReadOnlyDictionary<int, ICheat> ChetDictionary => m_chetDictionary;
         
         private IChatFactory m_chatFactory = new ChatFactory();
         
         public event Action<CheatProvider, List<ICheat>> OnCheatsRegistered;
-
+        public event Action<CheatProvider, List<int>> OnCheatsUnregistered;
+        
         public void Register(CheatProvider cheatProvider)
         {
             var list = new List<ICheat>(30);
@@ -54,15 +59,31 @@ namespace cookie.Cheats
                     m_membersDictionary.Add(monoBehaviour.GetType(), members);
                 }
                 
-                list.AddRange(members.Select(member => m_chatFactory.Build(monoBehaviour, member)));
+                list.AddRange(members.Select(member =>
+                {
+                    var cheat = m_chatFactory.Build(monoBehaviour, member);
+                    m_chetDictionary.Add(cheat.ID, cheat);
+                    return cheat;
+                }));
             }
             
-            m_chetDictionary.Add(cheatProvider, list);
+            m_providerChetDictionary.Add(cheatProvider, list);
             OnCheatsRegistered?.Invoke(cheatProvider, list);
         }
 
-        public void Unregister(CheatProvider cheatProvider) => m_chetDictionary.Remove(cheatProvider);
-        
+        public void Unregister(CheatProvider cheatProvider)
+        {
+            var idList = new List<int>();
+            if (!m_providerChetDictionary.TryGetValue(cheatProvider, out var list)) return;
+            foreach (var member in list)
+            {
+                m_chetDictionary.Remove(member.ID);
+                idList.Add(member.ID);
+            }
+            m_providerChetDictionary.Remove(cheatProvider);
+            OnCheatsUnregistered.Invoke(cheatProvider, idList);
+        }
+
         private IEnumerable<MemberInfo> ExtractCheats(MonoBehaviour component)
         {
             return ExtractMembers(component.GetType()).Distinct(m_comparer);

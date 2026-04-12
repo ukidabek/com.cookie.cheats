@@ -9,16 +9,17 @@ namespace cookie.Cheats
     
     public class ChatFactory : IChatFactory
     {
+        private int m_nextCheatId = 0;
         public ICheat Build(object target, MemberInfo memberInfo)
         {
             switch (memberInfo)
             {
                 case FieldInfo fieldInfo:
-                    return new FieldCheat(target, fieldInfo);
+                    return new FieldCheat(m_nextCheatId++, target, fieldInfo);
                 case PropertyInfo propertyInfo:
-                    return new PropertyCheat(target, propertyInfo);
+                    return new PropertyCheat(m_nextCheatId++, target, propertyInfo);
                 case MethodInfo methodInfo:
-                    return new MethodCheat(target, methodInfo);
+                    return new MethodCheat(m_nextCheatId++, target, methodInfo);
             }
             
             return null;
