@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -6,6 +7,8 @@ namespace cookie.Cheats
 {
     public abstract class CheatHandler : MonoBehaviour
     {
+        protected virtual void Awake() { }
+
         public abstract bool CanHandle(ICheat cheat);
         
         public abstract void Initialize(ICheat cheat);
@@ -29,10 +32,7 @@ namespace cookie.Cheats
         [SerializeField] private Transform m_parent;
         private readonly Dictionary<CheatProvider, List<CheatHandler>> m_cheatsDictionary = new Dictionary<CheatProvider, List<CheatHandler>>(30);
 
-        private void Awake()
-        {
-            CheatDatabase.Instance.OnCheatsRegistered += AddCheatUI;
-        }
+        private void Awake() => CheatDatabase.Instance.OnCheatsRegistered += AddCheatUI;
 
         private void AddCheatUI(CheatProvider provider, List<ICheat> cheats)
         {
@@ -43,6 +43,7 @@ namespace cookie.Cheats
                 if (handler == null) continue;
                 var instance = Instantiate(handler, m_parent);
                 instance.Initialize(cheat);
+                instance.transform.SetAsFirstSibling();
                 cheatHandlers.Add(instance);
             }
         }

@@ -6,132 +6,22 @@ using UnityEngine;
 
 namespace cookie.Cheats
 {
-    public interface ICheat
-    {
-        int ID { get; }
-        object Target { get; }
-        string Name { get; }
-        public IReadOnlyList<CheatAttribute> Attributes { get; }
-    }
-
-    public abstract class Cheat<T> : ICheat where T : MemberInfo
-    {
-        private static int ChatID = 0;
-
-        public int ID { get; }
-        public object Target { get; }
-        public string Name { get; }
-
-        public readonly T MemberInfo = null;
-        
-        public IReadOnlyList<CheatAttribute> Attributes { get; }
-
-        protected Cheat(object target, T memberInfo)
-        {
-            Target = target;
-            MemberInfo = memberInfo;
-            Name = memberInfo.Name;
-            ID = ChatID++;
-            Attributes = memberInfo.GetCustomAttributes<CheatAttribute>().ToArray();
-        }
-    }
-
-    public abstract class ValueCheat<T> : Cheat<T> where T : MemberInfo
-    {
-        private static readonly HashSet<Type> NumericTypes = new()
-        {
-            typeof(byte),
-            typeof(sbyte),
-            typeof(short),
-            typeof(ushort),
-            typeof(int),
-            typeof(uint),
-            typeof(long),
-            typeof(ulong),
-            typeof(float),
-            typeof(double),
-            typeof(decimal)
-        };
-        
-        private static readonly HashSet<Type> WholeNumberTypes = new()
-        {
-            typeof(byte),
-            typeof(sbyte),
-            typeof(short),
-            typeof(ushort),
-            typeof(int),
-            typeof(uint),
-            typeof(long),
-            typeof(ulong)
-        };
-        
-        public Type ValueType { get; }
-        public bool IsNumeric { get; }
-        public bool IsWholeNumber { get; }
-        public bool CanRead { get; }
-        public bool CanWrite { get; }
-        
-        protected ValueCheat(object target, T memberInfo, Type valueType, bool canRead, bool canWrite) 
-            : base(target, memberInfo)
-        {
-            if (Attributes.Count > 1)
-                throw new ArgumentException($"Value type cheat should have ony one {nameof(CheatAttribute)}!");
-            
-            ValueType = valueType;
-            IsNumeric = NumericTypes.Contains(ValueType);
-            IsWholeNumber = WholeNumberTypes.Contains(ValueType);
-            CanRead = canRead;
-            CanWrite = canWrite;
-        }
-
-        public abstract object Get();
-        public abstract void Set(object value);
-    }
-
-    public class FieldCheat : ValueCheat<FieldInfo>
-    {
-        public FieldCheat(object target, FieldInfo memberInfo) 
-            : base(target, memberInfo, memberInfo.FieldType, true, true)
-        {
-        }
-
-        public override object Get() => MemberInfo.GetValue(Target);
-
-        public override void Set(object value) => MemberInfo.SetValue(Target, value);
-    }
-
-    public class PropertyCheat : ValueCheat<PropertyInfo>
-    {
-        public PropertyCheat(object target, PropertyInfo propertyInfo) 
-            : base(target, propertyInfo, propertyInfo.PropertyType, propertyInfo.CanRead, propertyInfo.CanWrite)
-        {
-        }
-
-        public override object Get() => !CanRead ? null : MemberInfo.GetValue(Target);
-
-        public override void Set(object value)
-        {
-            if (!CanWrite) return;
-            MemberInfo.SetValue(Target, value);
-        }
-    }
-
-    
-    public class MethodCheat : Cheat<MethodInfo>
-    {
-        public MethodCheat(object target, MethodInfo memberInfo) : base(target, memberInfo)
-        {
-        }
-
-        public void Invoke(object[] parameters)
-        {
-            MemberInfo.Invoke(Target, parameters);
-        }
-    }
-
-
     public class CheatDatabase
     {
+        private class MemberInfoEqualityComparer : IEqualityComparer<MemberInfo>
+        {
+            public bool Equals(MemberInfo x, MemberInfo y)
+            {
+                if (x is null || y is null)
+                    return false;
+
+                return x.MetadataToken == y.MetadataToken &&
+                       x.Module == y.Module;
+            }
+
+            public int GetHashCode(MemberInfo obj) => HashCode.Combine(obj.MetadataToken, obj.Module);
+        }
+        
         private const BindingFlags BindingFlag = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
         private static readonly Type MonoBehaviorType = typeof(MonoBehaviour);
 
@@ -144,7 +34,7 @@ namespace cookie.Cheats
                 return m_instance;
             }
         }
-        
+        private readonly MemberInfoEqualityComparer m_comparer = new MemberInfoEqualityComparer();
         private readonly Dictionary<Type, IReadOnlyList<MemberInfo>> m_membersDictionary = new Dictionary<Type, IReadOnlyList<MemberInfo>>(30);
         private readonly Dictionary<CheatProvider, List<ICheat>> m_chetDictionary = new Dictionary<CheatProvider, List<ICheat>>(30);
         public IReadOnlyDictionary<CheatProvider, List<ICheat>> ChetDictionary => m_chetDictionary;
@@ -171,13 +61,12 @@ namespace cookie.Cheats
             OnCheatsRegistered?.Invoke(cheatProvider, list);
         }
 
-        public void Unregister(CheatProvider cheatProvider)
-        {
-            m_chetDictionary.Remove(cheatProvider);
-        }
+        public void Unregister(CheatProvider cheatProvider) => m_chetDictionary.Remove(cheatProvider);
         
         private IEnumerable<MemberInfo> ExtractCheats(MonoBehaviour component)
         {
+            return ExtractMembers(component.GetType()).Distinct(m_comparer);
+
             IEnumerable<MemberInfo> ExtractMembers(Type type)
             {
                 var extractMembers = type
@@ -186,8 +75,6 @@ namespace cookie.Cheats
                 
                 return type.BaseType  == MonoBehaviorType ? extractMembers : extractMembers.Concat(ExtractMembers(type.BaseType));
             }
-           
-            return ExtractMembers(component.GetType());;
         }
     }
 }
