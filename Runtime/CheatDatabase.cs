@@ -43,7 +43,7 @@ namespace cookie.Cheats
         private readonly Dictionary<int, ICheat> m_chetDictionary = new Dictionary<int, ICheat>(100);
         public IReadOnlyDictionary<int, ICheat> ChetDictionary => m_chetDictionary;
         
-        private IChatFactory m_chatFactory = new ChatFactory();
+        private ICheatFactory m_cheatFactory = new CheatFactory();
         
         public event Action<CheatProvider, List<ICheat>> OnCheatsRegistered;
         public event Action<CheatProvider, List<int>> OnCheatsUnregistered;
@@ -61,7 +61,7 @@ namespace cookie.Cheats
                 
                 list.AddRange(members.Select(member =>
                 {
-                    var cheat = m_chatFactory.Build(monoBehaviour, member);
+                    var cheat = m_cheatFactory.Build(monoBehaviour, member);
                     m_chetDictionary.Add(cheat.ID, cheat);
                     return cheat;
                 }));

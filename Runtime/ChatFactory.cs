@@ -2,14 +2,15 @@ using System.Reflection;
 
 namespace cookie.Cheats
 {
-    public interface IChatFactory
+    public interface ICheatFactory
     {
         ICheat Build(object target, MemberInfo memberInfo);
     }
     
-    public class ChatFactory : IChatFactory
+    public class CheatFactory : ICheatFactory
     {
         private int m_nextCheatId = 0;
+        
         public ICheat Build(object target, MemberInfo memberInfo)
         {
             switch (memberInfo)

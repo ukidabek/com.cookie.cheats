@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -11,6 +12,42 @@ using UnityEngine;
 
 namespace cookie.Cheats
 {
+    [Serializable]
+    public class CheatPayload
+    {
+        public readonly int ID;
+        public readonly object[] Parameters;
+
+        public CheatPayload(int id, object[] parameters)
+        {
+            ID = id;
+            Parameters = parameters;
+        }
+    }
+
+    public interface ICheatHandler
+    {
+        Type CheatType { get; }
+        void Handle(ICheat cheat, CheatPayload payload);
+        Task Update(ICheat cheat, Socket socket);
+    }
+
+    public class FieldCheatHandler : ICheatHandler
+    {
+        public Type CheatType => typeof(FieldCheat);
+        
+        public void Handle(ICheat cheat, CheatPayload payload)
+        {
+            var fieldCheat = (FieldCheat)cheat;
+            fieldCheat.Set(payload.Parameters.First());
+        }
+
+        public Task Update(ICheat cheat, Socket socket)
+        {
+            throw new NotImplementedException();
+        }
+    }
+    
     public class CheatServer : MonoBehaviour
     {
         public const int DiscoverMessage = 0;
@@ -18,6 +55,7 @@ namespace cookie.Cheats
         
         [SerializeField] private int m_discoverPort = 2137;
         [SerializeField] private int m_listenPort = 2138;
+        [SerializeField, Min(1)] private int m_connectionCount = 1;
         
         private Socket m_broadcast = null;
         private Socket m_listen = null;
@@ -27,8 +65,29 @@ namespace cookie.Cheats
 
         private IPAddress m_listenAddress = null;
         
-        private void Awake()
+        private Dictionary<Type, ICheatHandler> m_cheatDictionary = new  Dictionary<Type, ICheatHandler>(30);
+        
+        private IEnumerator Start()
         {
+            var types = AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(assembly => assembly.GetTypes());
+
+            var cheatHandlerType = typeof(ICheatHandler);
+            var count = 0;
+            foreach (var type in types)
+            {
+                if (!type.IsAbstract &&
+                    !type.IsInterface &&
+                    cheatHandlerType.IsAssignableFrom(type))
+                {
+                    var instance = (ICheatHandler)Activator.CreateInstance(type);
+                    m_cheatDictionary.Add(instance.CheatType, instance);
+                }
+                if (count++ != 100) continue;
+                count = 0;
+                yield return null;
+            }
+            
             m_broadcast = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             m_broadcast.Bind(new IPEndPoint(IPAddress.Any, m_discoverPort));
 
@@ -36,10 +95,10 @@ namespace cookie.Cheats
             
             m_listenAddress = Dns.GetHostAddresses(Dns.GetHostName())
                 .First(ip => ip.AddressFamily == AddressFamily.InterNetwork);
-            
+
             m_listen = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             m_listen.Bind(new IPEndPoint(m_listenAddress, m_listenPort));
-            m_listen.Listen(1);
+            m_listen.Listen(m_connectionCount);
 
             m_broadcastTask = ListeningTask();
         }
@@ -47,38 +106,42 @@ namespace cookie.Cheats
         private async Task ListeningTask()
         {
             var data = new byte[1024];
-            EndPoint source = new IPEndPoint(IPAddress.Any, 0);
             while (true)
             {
                 try
                 {
                     var socket = await m_listen.AcceptAsync();
-
                     var lenght = socket.Receive(data);
 
                     if (lenght < sizeof(int)) continue;
 
                     var message = BitConverter.ToInt32(data, 0);
-
                     switch (message)
                     {
                         case GetCheatsMessage:
-                            var cheats = CheatDatabase.Instance.ChetDictionary.Values.ToArray();
+                            var cheats = CheatDatabase.Instance.ChetDictionary.Values
+                                .Select(cheat => new CheatIdentifier(cheat))
+                                .ToArray();
+
                             var formatter = new BinaryFormatter();
                             using (var memoryStream = new MemoryStream())
                             {
                                 formatter.Serialize(memoryStream, cheats);
                                 var buffer = memoryStream.ToArray();
-                                await socket.SendAsync(buffer, SocketFlags.None);
+                                socket.Send(BitConverter.GetBytes(buffer.Length));
+                                socket.Send(buffer);
                             }
 
                             break;
                     }
-                    socket.Close();
                 }
                 catch (ObjectDisposedException)
                 {
                     break;
+                }
+                catch (Exception e)
+                {
+                    Debug.LogException(e);
                 }
             }
         }
@@ -88,19 +151,6 @@ namespace cookie.Cheats
             m_broadcast?.Dispose();
             m_listen?.Dispose();
             m_broadcastTask.Dispose();
-        }
-
-        [ContextMenu("Broadcast")]
-        public void Test()
-        {
-            var cheats = CheatDatabase.Instance.ChetDictionary.Values.ToArray();
-            var formatter = new BinaryFormatter();
-            using (var memoryStream = new MemoryStream())
-            {
-                formatter.Serialize(memoryStream, cheats);
-                var buffer = memoryStream.ToArray();
-               
-            }
         }
         
         private async Task BroadcastListeningTask()
