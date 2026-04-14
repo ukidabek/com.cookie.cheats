@@ -4,6 +4,8 @@ namespace cookie.Cheats
     {
         int ID { get; }
         string Name { get; }
-        public CheatData[] Attributes { get; }
+        CheatAttributeData[] Attributes { get; }
+        CheatData ToDataTransferObject();
+        
     }
 }

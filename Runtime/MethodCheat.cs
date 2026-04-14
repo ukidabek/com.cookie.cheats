@@ -14,5 +14,16 @@ namespace cookie.Cheats
         {
             MemberInfo.Invoke(Target, parameters);
         }
+
+        public override CheatData ToDataTransferObject()
+        {
+            return new CheatData()
+            {
+                ID = ID,
+                Name = Name,
+                AssemblyQualifiedName = GetType().AssemblyQualifiedName,
+                Attributes = Attributes,
+            };
+        }
     }
 }

@@ -4,6 +4,16 @@ using System.Reflection;
 
 namespace cookie.Cheats
 {
+    [Serializable]
+    public class ValueCheatData :  CheatData
+    {
+        public object Value;
+        public bool IsNumeric;
+        public bool IsWholeNumber;
+        public bool CanRead;
+        public bool CanWrite;
+    }
+    
     public abstract class ValueCheat<T> : Cheat<T> where T : MemberInfo
     {
         private static readonly HashSet<Type> NumericTypes = new()
@@ -54,5 +64,21 @@ namespace cookie.Cheats
 
         public abstract object Get();
         public abstract void Set(object value);
+
+        public override CheatData ToDataTransferObject()
+        {
+            return new ValueCheatData()
+            {
+                ID = ID,
+                Name = Name,
+                Attributes = Attributes,
+                AssemblyQualifiedName = GetType().AssemblyQualifiedName,
+                Value = Get(),
+                IsNumeric =  IsNumeric,
+                IsWholeNumber = IsWholeNumber,
+                CanRead = CanRead,
+                CanWrite =  CanWrite
+            };
+        }
     }
 }

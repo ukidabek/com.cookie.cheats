@@ -9,8 +9,8 @@ namespace cookie.Cheats
         public readonly object Target;
         public string Name { get; }
         public readonly T MemberInfo = null;
-        public CheatData[] Attributes { get; }
-
+        public CheatAttributeData[] Attributes { get; }
+        
         protected Cheat(int id, object target, T memberInfo)
         {
             Target = target;
@@ -18,8 +18,10 @@ namespace cookie.Cheats
             Name = memberInfo.Name;
             ID = id;
             Attributes = memberInfo.GetCustomAttributes<CheatAttribute>()
-                .Select(attribute => new CheatData(attribute))
+                .Select(attribute => new CheatAttributeData(attribute))
                 .ToArray();
         }
+
+        public abstract CheatData ToDataTransferObject();
     }
 }

@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,7 +14,7 @@ using UnityEngine;
 namespace cookie.Cheats
 {
     [Serializable]
-    public class CheatPayload
+    public readonly struct CheatPayload
     {
         public readonly int ID;
         public readonly object[] Parameters;
@@ -32,13 +33,13 @@ namespace cookie.Cheats
         Task Update(ICheat cheat, Socket socket);
     }
 
-    public class FieldCheatHandler : ICheatHandler
+    public abstract class xValueCheatHandler<T, T1> : ICheatHandler where T : ValueCheat<T1> where T1 : MemberInfo
     {
-        public Type CheatType => typeof(FieldCheat);
+        public  Type CheatType =>  typeof(T);
         
         public void Handle(ICheat cheat, CheatPayload payload)
         {
-            var fieldCheat = (FieldCheat)cheat;
+            var fieldCheat = (T)cheat;
             fieldCheat.Set(payload.Parameters.First());
         }
 
@@ -47,11 +48,37 @@ namespace cookie.Cheats
             throw new NotImplementedException();
         }
     }
+
+    public class xMethodCheatHandler : ICheatHandler
+    {
+        public Type CheatType => typeof(MethodCheat);
+        public void Handle(ICheat cheat, CheatPayload payload)
+        {
+            var fieldCheat = (MethodCheat)cheat;
+            fieldCheat.Invoke(payload.Parameters);
+        }
+
+        public Task Update(ICheat cheat, Socket socket)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class PropertyCheatHandler : xValueCheatHandler<PropertyCheat, PropertyInfo>
+    {
+        
+    }
+    
+    public class FieldCheatHandler : xValueCheatHandler<FieldCheat, FieldInfo>
+    {
+        
+    }
     
     public class CheatServer : MonoBehaviour
     {
         public const int DiscoverMessage = 0;
         public const int GetCheatsMessage = 1;
+        public const int SetPayload = 2;
         
         [SerializeField] private int m_discoverPort = 2137;
         [SerializeField] private int m_listenPort = 2138;
@@ -100,10 +127,10 @@ namespace cookie.Cheats
             m_listen.Bind(new IPEndPoint(m_listenAddress, m_listenPort));
             m_listen.Listen(m_connectionCount);
 
-            m_broadcastTask = ListeningTask();
+            m_listenTask = ConnectionAccept();
         }
 
-        private async Task ListeningTask()
+        private async Task ConnectionAccept()
         {
             var data = new byte[1024];
             while (true)
@@ -111,16 +138,40 @@ namespace cookie.Cheats
                 try
                 {
                     var socket = await m_listen.AcceptAsync();
+                    ConnectionHandler(socket);
+                    await Task.Yield();
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+                catch (Exception e)
+                {
+                    Debug.LogException(e);
+                }
+            }
+        }
+
+        private async Task ConnectionHandler(Socket socket)
+        {
+            var data = new byte[1024];
+            var binaryFormatter = new BinaryFormatter();
+            while (true)
+            {
+                try
+                {
+                    if (socket.Available == 0)
+                    {
+                        await Task.Yield();
+                        continue;
+                    }
                     var lenght = socket.Receive(data);
-
-                    if (lenght < sizeof(int)) continue;
-
                     var message = BitConverter.ToInt32(data, 0);
                     switch (message)
                     {
                         case GetCheatsMessage:
                             var cheats = CheatDatabase.Instance.ChetDictionary.Values
-                                .Select(cheat => new CheatIdentifier(cheat))
+                                .Select(cheat => cheat.ToDataTransferObject())
                                 .ToArray();
 
                             var formatter = new BinaryFormatter();
@@ -131,7 +182,17 @@ namespace cookie.Cheats
                                 socket.Send(BitConverter.GetBytes(buffer.Length));
                                 socket.Send(buffer);
                             }
-
+                            break;
+                        case SetPayload:
+                            await Task.Yield();
+                            socket.Receive(data);
+                            using (var memoryStream = new MemoryStream(data))
+                            {
+                                var payload = (CheatPayload)binaryFormatter.Deserialize(memoryStream);
+                                var cheat = CheatDatabase.Instance.ChetDictionary[payload.ID];
+                                var type = cheat.GetType();
+                                m_cheatDictionary[type].Handle(cheat, payload);
+                            }
                             break;
                     }
                 }

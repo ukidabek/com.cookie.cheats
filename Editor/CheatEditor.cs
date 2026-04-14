@@ -9,13 +9,12 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
-using Object = System.Object;
 
 namespace cookie.Cheats
 {
     public interface IEditorCheatFactory
     {
-        IEditorCheat Build(CheatIdentifier identifier);
+        IEditorCheat Build(CheatData data);
     }
 
     public interface IEditorCheat : ICheat
@@ -27,39 +26,103 @@ namespace cookie.Cheats
     public interface IEditorCheatBuilder
     {
         Type Type { get; }
-        IEditorCheat Build(CheatIdentifier identifier);
+        IEditorCheat Build(CheatData data);
     }
 
+    public class MethodCheatBuilder : IEditorCheatBuilder
+    {
+        private class EditorMethodCheat : IEditorCheat
+        {
+            public int ID { get; }
+            public string Name { get; }
+            public CheatAttributeData[] Attributes { get; }
+
+            public CheatData ToDataTransferObject() => null;
+
+            public event Action<CheatPayload> Update;
+
+            public void OnGUI()
+            {
+                EditorGUILayout.BeginHorizontal();
+                foreach (var attribute in Attributes)
+                {
+                    var name = string.IsNullOrEmpty(attribute.Name) ? Name : attribute.Name;
+                    if (GUILayout.Button(name)) 
+                        Update?.Invoke(new CheatPayload(ID, attribute.Parameters));
+                }
+
+                EditorGUILayout.EndHorizontal();
+            }
+
+            public EditorMethodCheat(CheatData data)
+            {
+                ID = data.ID;
+                Name = data.Name;
+                Attributes = data.Attributes;
+            }
+        }
+        
+        public Type Type => typeof(MethodCheat);
+        
+        public IEditorCheat Build(CheatData data) => new EditorMethodCheat(data);
+    }
+    
+    public class PropertyCheatBuilder : FieldCheatBuilder
+    {
+        public override Type Type => typeof(PropertyCheat);
+    }
+    
     public class FieldCheatBuilder : IEditorCheatBuilder
     {
         private class EditorFieldCheat : IEditorCheat
         {
             public int ID { get; }
             public string Name { get; }
-            public CheatData[] Attributes { get; }
+            public CheatAttributeData[] Attributes { get; }
+
+            public CheatData ToDataTransferObject() => null;
+
             public event Action<CheatPayload> Update;
 
-            private float m_value = 0;
+            private bool m_isNumericValue = false;
+            private float m_numericValue = 0;
+            private bool m_booleValue = false;
 
             public void OnGUI()
             {
                 EditorGUI.BeginChangeCheck();
-                m_value = EditorGUILayout.FloatField(Name, m_value);
+                if (m_isNumericValue)
+                    m_numericValue = EditorGUILayout.FloatField(Name, m_numericValue);
+                else
+                    m_booleValue = EditorGUILayout.Toggle(Name, m_booleValue);
+
                 if (EditorGUI.EndChangeCheck())
-                    Update.Invoke(new CheatPayload(ID, new object[] { m_value }));
+                    Update.Invoke(new CheatPayload(ID, new object[]
+                    {
+                        m_isNumericValue ? m_numericValue : m_booleValue
+                    }));
             }
 
-            public EditorFieldCheat(CheatIdentifier identifier)
+            public EditorFieldCheat(ValueCheatData data)
             {
-                ID = identifier.ID;
-                Name = identifier.Name;
-                Attributes = identifier.Attributes;
+                ID = data.ID;
+                Name = data.Name;
+                Attributes = data.Attributes;
+                m_isNumericValue = data.IsNumeric;
+                var value = data.Value;
+                if (m_isNumericValue)
+                    m_numericValue = (float)Convert.ChangeType(value, typeof(float));
+                else
+                    m_booleValue = (bool)Convert.ChangeType(value, typeof(bool));
             }
         }
 
-        public Type Type => typeof(FieldCheat);
+        public virtual Type Type => typeof(FieldCheat);
 
-        public IEditorCheat Build(CheatIdentifier identifier) => new EditorFieldCheat(identifier);
+        public IEditorCheat Build(CheatData data)
+        {
+            return new EditorFieldCheat(data as ValueCheatData);
+        }
     }
     
     public class CheatEditor : EditorWindow
@@ -154,18 +217,34 @@ namespace cookie.Cheats
             using (var memoryStream = new MemoryStream(buffer, 0, lenght))
             {
                 var binaryFormater = new BinaryFormatter();
-                var data = (CheatIdentifier[])binaryFormater.Deserialize(memoryStream);
+                var data = (CheatData[])binaryFormater.Deserialize(memoryStream);
 
                 foreach (var identifier in data)
                 {
                     var type = Type.GetType(identifier.AssemblyQualifiedName);
                     if(!m_fieldCheats.TryGetValue(type, out var builder)) continue;
                     var instance = builder.Build(identifier);
+                    instance.Update += SendPayload;
                     m_editorCheats.Add(instance);
                 }
             }
             m_currentState = State.Cheats;
             Repaint();
+        }
+
+        private async void SendPayload(CheatPayload payload)
+        {
+            if (m_tcpClient == null) return;
+            var stream = m_tcpClient.GetStream();
+
+            await stream.WriteAsync(BitConverter.GetBytes(CheatServer.SetPayload));
+            var binaryFormater = new BinaryFormatter();
+            using (var memoryStream = new MemoryStream())
+            {
+                binaryFormater.Serialize(memoryStream, payload);
+                await stream.WriteAsync(memoryStream.ToArray(), 0, (int)memoryStream.Length);
+            }
+            
         }
 
         private async Task<List<IPEndPoint>> SendDiscoverServerBroadcast()
