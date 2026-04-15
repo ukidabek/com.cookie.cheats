@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -72,7 +73,9 @@ namespace cookie.Cheats.Server
                 try
                 {
                     var socket = await m_listen.AcceptAsync();
-                    MessageHandling(socket);
+                    var messageQueue = new ConcurrentQueue<Message>();
+                    Task.Run(() => MessageHandling(socket, messageQueue));
+                    Task.Run(() => ResponseHandling(socket, messageQueue));
                     await Task.Yield();
                 }
                 catch (ObjectDisposedException)
@@ -88,9 +91,37 @@ namespace cookie.Cheats.Server
             }
         }
 
-        private async Task MessageHandling(Socket socket)
+        private async Task ResponseHandling(Socket socket, ConcurrentQueue<Message> queue)
         {
             await Awaitable.BackgroundThreadAsync();
+            var binaryFormatter = new BinaryFormatter();
+
+            while (true)
+            {
+                try
+                {
+                    if (!socket.Connected) 
+                        break;
+                    if (queue.TryDequeue(out var message))
+                    {
+                        using var responseStream = new MemoryStream();
+                        binaryFormatter.Serialize(responseStream, message);
+                        socket.Send(responseStream.ToArray());
+                    }
+                    else
+                        await Task.Yield();
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+            }
+        }
+
+        private async Task MessageHandling(Socket socket, ConcurrentQueue<Message> queue)
+        {
+            await Awaitable.BackgroundThreadAsync();
+            
             var data = new byte[4096];
             var binaryFormatter = new BinaryFormatter();
             
@@ -110,9 +141,7 @@ namespace cookie.Cheats.Server
                     var response = handler.Handle(message.Payload);
                     if (response == null) continue;
 
-                    using var responseStream = new MemoryStream();
-                    binaryFormatter.Serialize(responseStream, response);
-                    socket.Send(responseStream.ToArray());
+                    queue.Enqueue(response);
                 }
                 catch (ObjectDisposedException)
                 {
