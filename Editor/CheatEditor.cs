@@ -7,16 +7,12 @@ using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
+using cookie.Cheats.Server;
 using UnityEditor;
 using UnityEngine;
 
 namespace cookie.Cheats
 {
-    public interface IEditorCheatFactory
-    {
-        IEditorCheat Build(CheatData data);
-    }
-
     public interface IEditorCheat : ICheat
     {
         event Action<CheatPayload> Update;
@@ -144,6 +140,10 @@ namespace cookie.Cheats
         private TcpClient m_tcpClient = null;
         
         // Add menu item to open the window
+        public CheatEditor()
+        {
+        }
+
         [MenuItem("Tools/My Custom Window")]
         public static void ShowWindow()
         {
@@ -181,14 +181,21 @@ namespace cookie.Cheats
             m_states[m_currentState].OnGUI();
         }
 
+        private void OnDestroy()
+        {
+            if (m_tcpClient == null) return;
+            
+            m_tcpClient.Client.Shutdown(SocketShutdown.Both);
+            m_tcpClient.Close();
+            m_tcpClient.Dispose();
+        }
+
         private async void DiscoverServers()
         {
             m_currentState = State.Discovering;
             Repaint();
             
             var discoveredServer = await SendDiscoverServerBroadcast();
-            foreach (var endPoint in discoveredServer) 
-                Debug.Log(endPoint);
             
             m_currentState = State.ConnectionList;
             m_discoveredServer.Clear();
@@ -202,32 +209,34 @@ namespace cookie.Cheats
 
             m_tcpClient?.Close();
             m_tcpClient ??= new TcpClient();
-            
+
             await m_tcpClient.ConnectAsync(endPoint.Address, endPoint.Port);
 
             var stream = m_tcpClient.GetStream();
-            
-            stream.Write(BitConverter.GetBytes(CheatServer.GetCheatsMessage));
-            var sizeBuffer = new byte[sizeof(int)];
-            var lenght = await stream.ReadAsync(sizeBuffer, 0, sizeBuffer.Length);
-            lenght = BitConverter.ToInt32(sizeBuffer, 0);
-            var buffer = new byte[lenght];
-            lenght = await stream.ReadAsync(buffer, 0, buffer.Length);
-           
-            using (var memoryStream = new MemoryStream(buffer, 0, lenght))
-            {
-                var binaryFormater = new BinaryFormatter();
-                var data = (CheatData[])binaryFormater.Deserialize(memoryStream);
+              
+            var message = new Message(CheatServer.GetCheatsMessage, null);
+            var binaryFormatter = new BinaryFormatter();
 
-                foreach (var identifier in data)
-                {
-                    var type = Type.GetType(identifier.AssemblyQualifiedName);
-                    if(!m_fieldCheats.TryGetValue(type, out var builder)) continue;
-                    var instance = builder.Build(identifier);
-                    instance.Update += SendPayload;
-                    m_editorCheats.Add(instance);
-                }
+            using var messageMemoryStream = new MemoryStream();
+            binaryFormatter.Serialize(messageMemoryStream, message);
+            await stream.WriteAsync(messageMemoryStream.ToArray());
+            
+            var buffer = new byte[1024 * 4];
+            var lenght = await stream.ReadAsync(buffer);
+
+            using var responseMemoryStream = new MemoryStream(buffer, 0, lenght);
+            message = (Message)binaryFormatter.Deserialize(responseMemoryStream);
+            var data = (CheatData[])message.Payload;
+            
+            foreach (var identifier in data)
+            {
+                var type = Type.GetType(identifier.AssemblyQualifiedName);
+                if (!m_fieldCheats.TryGetValue(type, out var builder)) continue;
+                var instance = builder.Build(identifier);
+                instance.Update += SendPayload;
+                m_editorCheats.Add(instance);
             }
+            
             m_currentState = State.Cheats;
             Repaint();
         }
@@ -235,16 +244,16 @@ namespace cookie.Cheats
         private async void SendPayload(CheatPayload payload)
         {
             if (m_tcpClient == null) return;
+
             var stream = m_tcpClient.GetStream();
 
-            await stream.WriteAsync(BitConverter.GetBytes(CheatServer.SetPayload));
             var binaryFormater = new BinaryFormatter();
-            using (var memoryStream = new MemoryStream())
-            {
-                binaryFormater.Serialize(memoryStream, payload);
-                await stream.WriteAsync(memoryStream.ToArray(), 0, (int)memoryStream.Length);
-            }
-            
+            var message = new Message(CheatServer.SetPayload, payload);
+
+            using var memoryStream = new MemoryStream();
+            binaryFormater.Serialize(memoryStream, message);
+
+            await stream.WriteAsync(memoryStream.ToArray());
         }
 
         private async Task<List<IPEndPoint>> SendDiscoverServerBroadcast()

@@ -1,6 +1,10 @@
+using System;
+using System.Net.Sockets;
+using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Scripting;
 
-namespace cookie.Cheats
+namespace cookie.Cheats.UI
 {
     public class MethodCheatHandler : CheatHandler<MethodCheat>
     {
@@ -23,6 +27,25 @@ namespace cookie.Cheats
                 button.gameObject.SetActive(true);
                 button.Initialize(name, m_cheat.Target, m_cheat.MemberInfo, attribute.Parameters);
             }
+        }
+    }
+}
+
+namespace cookie.Cheats.Server
+{
+    [Preserve]
+    public class MethodCheatHandler : ICheatHandler
+    {
+        public Type CheatType => typeof(MethodCheat);
+        public void Handle(ICheat cheat, CheatPayload payload)
+        {
+            var fieldCheat = (MethodCheat)cheat;
+            fieldCheat.Invoke(payload.Parameters);
+        }
+
+        public Task Update(ICheat cheat, Socket socket)
+        {
+            throw new NotImplementedException();
         }
     }
 }

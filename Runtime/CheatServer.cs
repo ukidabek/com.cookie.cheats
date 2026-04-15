@@ -5,75 +5,13 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Reflection;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace cookie.Cheats
+namespace cookie.Cheats.Server
 {
-    [Serializable]
-    public readonly struct CheatPayload
-    {
-        public readonly int ID;
-        public readonly object[] Parameters;
-
-        public CheatPayload(int id, object[] parameters)
-        {
-            ID = id;
-            Parameters = parameters;
-        }
-    }
-
-    public interface ICheatHandler
-    {
-        Type CheatType { get; }
-        void Handle(ICheat cheat, CheatPayload payload);
-        Task Update(ICheat cheat, Socket socket);
-    }
-
-    public abstract class xValueCheatHandler<T, T1> : ICheatHandler where T : ValueCheat<T1> where T1 : MemberInfo
-    {
-        public  Type CheatType =>  typeof(T);
-        
-        public void Handle(ICheat cheat, CheatPayload payload)
-        {
-            var fieldCheat = (T)cheat;
-            fieldCheat.Set(payload.Parameters.First());
-        }
-
-        public Task Update(ICheat cheat, Socket socket)
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    public class xMethodCheatHandler : ICheatHandler
-    {
-        public Type CheatType => typeof(MethodCheat);
-        public void Handle(ICheat cheat, CheatPayload payload)
-        {
-            var fieldCheat = (MethodCheat)cheat;
-            fieldCheat.Invoke(payload.Parameters);
-        }
-
-        public Task Update(ICheat cheat, Socket socket)
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    public class PropertyCheatHandler : xValueCheatHandler<PropertyCheat, PropertyInfo>
-    {
-        
-    }
-    
-    public class FieldCheatHandler : xValueCheatHandler<FieldCheat, FieldInfo>
-    {
-        
-    }
-    
     public class CheatServer : MonoBehaviour
     {
         public const int DiscoverMessage = 0;
@@ -87,58 +25,54 @@ namespace cookie.Cheats
         private Socket m_broadcast = null;
         private Socket m_listen = null;
         
-        private Task m_broadcastTask = null;
-        private Task m_listenTask = null;
-
         private IPAddress m_listenAddress = null;
+
+        private Dictionary<Type, ICheatHandler> m_cheatChandlerDictionary;
+        private Dictionary<int, MessageHandler> m_messageHandlerDictionary;
         
-        private Dictionary<Type, ICheatHandler> m_cheatDictionary = new  Dictionary<Type, ICheatHandler>(30);
-        
-        private IEnumerator Start()
+        public IEnumerable<ICheat> Cheats => CheatDatabase.Instance.ChetDictionary.Values;
+
+        private void Start()
         {
             var types = AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(assembly => assembly.GetTypes());
+                .SelectMany(assembly => assembly.GetTypes())
+                .Where(type => type.IsClass && !type.IsAbstract)
+                .ToArray();
 
             var cheatHandlerType = typeof(ICheatHandler);
-            var count = 0;
-            foreach (var type in types)
-            {
-                if (!type.IsAbstract &&
-                    !type.IsInterface &&
-                    cheatHandlerType.IsAssignableFrom(type))
-                {
-                    var instance = (ICheatHandler)Activator.CreateInstance(type);
-                    m_cheatDictionary.Add(instance.CheatType, instance);
-                }
-                if (count++ != 100) continue;
-                count = 0;
-                yield return null;
-            }
-            
+            m_cheatChandlerDictionary = types
+                .Where(type => cheatHandlerType.IsAssignableFrom(type))
+                .Select(type => (ICheatHandler)Activator.CreateInstance(type))
+                .ToDictionary(handler => handler.CheatType);
+
+            var messageHandlerType = typeof(MessageHandler);
+            var cheatServer = new object[] { this };
+            m_messageHandlerDictionary = types
+                .Where(type => messageHandlerType.IsAssignableFrom(type))
+                .Select(type => (MessageHandler)Activator.CreateInstance(type, cheatServer))
+                .ToDictionary(handler => handler.Id);
+
             m_broadcast = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             m_broadcast.Bind(new IPEndPoint(IPAddress.Any, m_discoverPort));
+            _ = BroadcastListeningTask();
 
-            m_broadcastTask = BroadcastListeningTask();
-            
-            m_listenAddress = Dns.GetHostAddresses(Dns.GetHostName())
-                .First(ip => ip.AddressFamily == AddressFamily.InterNetwork);
+            m_listenAddress = Dns.GetHostAddresses(Dns.GetHostName()).First(ip => ip.AddressFamily == AddressFamily.InterNetwork);
 
             m_listen = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             m_listen.Bind(new IPEndPoint(m_listenAddress, m_listenPort));
             m_listen.Listen(m_connectionCount);
-
-            m_listenTask = ConnectionAccept();
+            _ = ConnectionAccept();
         }
 
         private async Task ConnectionAccept()
         {
-            var data = new byte[1024];
+            await Awaitable.BackgroundThreadAsync();
             while (true)
             {
                 try
                 {
                     var socket = await m_listen.AcceptAsync();
-                    ConnectionHandler(socket);
+                    MessageHandling(socket);
                     await Task.Yield();
                 }
                 catch (ObjectDisposedException)
@@ -147,75 +81,79 @@ namespace cookie.Cheats
                 }
                 catch (Exception e)
                 {
+                    await Awaitable.MainThreadAsync();
                     Debug.LogException(e);
+                    await Awaitable.BackgroundThreadAsync();
                 }
             }
         }
 
-        private async Task ConnectionHandler(Socket socket)
+        private async Task MessageHandling(Socket socket)
         {
-            var data = new byte[1024];
+            await Awaitable.BackgroundThreadAsync();
+            var data = new byte[4096];
             var binaryFormatter = new BinaryFormatter();
+            
             while (true)
             {
                 try
                 {
-                    if (socket.Available == 0)
-                    {
-                        await Task.Yield();
-                        continue;
-                    }
                     var lenght = socket.Receive(data);
-                    var message = BitConverter.ToInt32(data, 0);
-                    switch (message)
-                    {
-                        case GetCheatsMessage:
-                            var cheats = CheatDatabase.Instance.ChetDictionary.Values
-                                .Select(cheat => cheat.ToDataTransferObject())
-                                .ToArray();
 
-                            var formatter = new BinaryFormatter();
-                            using (var memoryStream = new MemoryStream())
-                            {
-                                formatter.Serialize(memoryStream, cheats);
-                                var buffer = memoryStream.ToArray();
-                                socket.Send(BitConverter.GetBytes(buffer.Length));
-                                socket.Send(buffer);
-                            }
-                            break;
-                        case SetPayload:
-                            await Task.Yield();
-                            socket.Receive(data);
-                            using (var memoryStream = new MemoryStream(data))
-                            {
-                                var payload = (CheatPayload)binaryFormatter.Deserialize(memoryStream);
-                                var cheat = CheatDatabase.Instance.ChetDictionary[payload.ID];
-                                var type = cheat.GetType();
-                                m_cheatDictionary[type].Handle(cheat, payload);
-                            }
-                            break;
-                    }
+                    if (lenght == 0) break;
+
+                    using var messageStream = new MemoryStream(data, 0, lenght);
+                    var message = (Message)binaryFormatter.Deserialize(messageStream);
+
+                    if (!m_messageHandlerDictionary.TryGetValue(message.ID, out var handler)) continue;
+
+                    var response = handler.Handle(message.Payload);
+                    if (response == null) continue;
+
+                    using var responseStream = new MemoryStream();
+                    binaryFormatter.Serialize(responseStream, response);
+                    socket.Send(responseStream.ToArray());
                 }
                 catch (ObjectDisposedException)
                 {
                     break;
                 }
+                catch (SocketException)
+                {
+                    break;
+                }
+                catch (IOException)
+                {
+                    break;
+                }
                 catch (Exception e)
                 {
+                    await Awaitable.MainThreadAsync();
                     Debug.LogException(e);
+                    await Awaitable.BackgroundThreadAsync();
                 }
             }
         }
 
+        public void NewMethod(CheatPayload payload)
+        {
+            var cheat = CheatDatabase.Instance.ChetDictionary[payload.ID];
+            var type = cheat.GetType();
+            m_cheatChandlerDictionary[type].Handle(cheat, payload);
+        }
+
         private void OnDestroy()
         {
-            m_broadcast?.Dispose();
-            m_listen?.Dispose();
-            m_broadcastTask.Dispose();
+            m_broadcast.Close();
+            m_broadcast.Dispose();
+
+            m_listen.Close();
+            m_listen.Dispose();
         }
         
         private async Task BroadcastListeningTask()
         {
+            await Awaitable.BackgroundThreadAsync();
             var data = new byte[1024];
             EndPoint source = new IPEndPoint(IPAddress.Any, 0);
             while (true)

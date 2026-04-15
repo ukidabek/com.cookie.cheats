@@ -81,7 +81,7 @@ namespace cookie.Cheats
                 idList.Add(member.ID);
             }
             m_providerChetDictionary.Remove(cheatProvider);
-            OnCheatsUnregistered.Invoke(cheatProvider, idList);
+            OnCheatsUnregistered?.Invoke(cheatProvider, idList);
         }
 
         private IEnumerable<MemberInfo> ExtractCheats(MonoBehaviour component)

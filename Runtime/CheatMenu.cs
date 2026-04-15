@@ -1,9 +1,8 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-namespace cookie.Cheats
+namespace cookie.Cheats.UI
 {
     public abstract class CheatHandler : MonoBehaviour
     {
@@ -20,10 +19,7 @@ namespace cookie.Cheats
         
         public override bool CanHandle(ICheat cheat) => cheat is T;
 
-        public override void Initialize(ICheat cheat)
-        {
-            m_cheat = (T)cheat;
-        }
+        public override void Initialize(ICheat cheat) => m_cheat = (T)cheat;
     }
 
     public class CheatMenu : MonoBehaviour

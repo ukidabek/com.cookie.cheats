@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
 
-namespace cookie.Cheats
+namespace cookie.Cheats.UI
 {
     public class NumericCheatHandler : ValueCheatHandler<float>
     {
