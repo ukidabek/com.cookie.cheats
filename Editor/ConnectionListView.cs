@@ -13,7 +13,8 @@ namespace cookie.Cheats
         private readonly Action OnRefresh = null;
         private readonly Action<IPEndPoint> OnConnect = null;
 
-        public ConnectionListView(List<IPEndPoint> discoveredServer, Action onRefresh, Action<IPEndPoint> connect)
+        public ConnectionListView(CheatEditor cheatEditor, List<IPEndPoint> discoveredServer, Action onRefresh, Action<IPEndPoint> connect)
+            : base(cheatEditor)
         {
             m_discoveredServer = discoveredServer;
             OnRefresh = onRefresh;
@@ -22,6 +23,7 @@ namespace cookie.Cheats
 
         public override void OnGUI()
         {
+            m_cheatEditor.DiscoverPort = EditorGUILayout.IntField("Discover Port", m_cheatEditor.DiscoverPort);
             if (m_discoveredServer.Any())
             {
                 foreach (var endPoint in m_discoveredServer)

@@ -13,114 +13,6 @@ using UnityEngine;
 
 namespace cookie.Cheats
 {
-    public interface IEditorCheat : ICheat
-    {
-        event Action<CheatPayload> Update;
-        void OnGUI();
-    }
-
-    public interface IEditorCheatBuilder
-    {
-        Type Type { get; }
-        IEditorCheat Build(CheatData data);
-    }
-
-    public class MethodCheatBuilder : IEditorCheatBuilder
-    {
-        private class EditorMethodCheat : IEditorCheat
-        {
-            public int ID { get; }
-            public string Name { get; }
-            public CheatAttributeData[] Attributes { get; }
-
-            public CheatData ToDataTransferObject() => null;
-
-            public event Action<CheatPayload> Update;
-
-            public void OnGUI()
-            {
-                EditorGUILayout.BeginHorizontal();
-                foreach (var attribute in Attributes)
-                {
-                    var name = string.IsNullOrEmpty(attribute.Name) ? Name : attribute.Name;
-                    if (GUILayout.Button(name)) 
-                        Update?.Invoke(new CheatPayload(ID, attribute.Parameters));
-                }
-
-                EditorGUILayout.EndHorizontal();
-            }
-
-            public EditorMethodCheat(CheatData data)
-            {
-                ID = data.ID;
-                Name = data.Name;
-                Attributes = data.Attributes;
-            }
-        }
-        
-        public Type Type => typeof(MethodCheat);
-        
-        public IEditorCheat Build(CheatData data) => new EditorMethodCheat(data);
-    }
-    
-    public class PropertyCheatBuilder : FieldCheatBuilder
-    {
-        public override Type Type => typeof(PropertyCheat);
-    }
-    
-    public class FieldCheatBuilder : IEditorCheatBuilder
-    {
-        private class EditorFieldCheat : IEditorCheat
-        {
-            public int ID { get; }
-            public string Name { get; }
-            public CheatAttributeData[] Attributes { get; }
-
-            public CheatData ToDataTransferObject() => null;
-
-            public event Action<CheatPayload> Update;
-
-            private bool m_isNumericValue = false;
-            private float m_numericValue = 0;
-            private bool m_booleValue = false;
-
-            public void OnGUI()
-            {
-                EditorGUI.BeginChangeCheck();
-                if (m_isNumericValue)
-                    m_numericValue = EditorGUILayout.FloatField(Name, m_numericValue);
-                else
-                    m_booleValue = EditorGUILayout.Toggle(Name, m_booleValue);
-
-                if (EditorGUI.EndChangeCheck())
-                    Update.Invoke(new CheatPayload(ID, new object[]
-                    {
-                        m_isNumericValue ? m_numericValue : m_booleValue
-                    }));
-            }
-
-            public EditorFieldCheat(ValueCheatData data)
-            {
-                ID = data.ID;
-                Name = data.Name;
-                Attributes = data.Attributes;
-                m_isNumericValue = data.IsNumeric;
-                var value = data.Value;
-                if (m_isNumericValue)
-                    m_numericValue = (float)Convert.ChangeType(value, typeof(float));
-                else
-                    m_booleValue = (bool)Convert.ChangeType(value, typeof(bool));
-            }
-        }
-
-        public virtual Type Type => typeof(FieldCheat);
-
-        public IEditorCheat Build(CheatData data)
-        {
-            return new EditorFieldCheat(data as ValueCheatData);
-        }
-    }
-    
     public class CheatEditor : EditorWindow
     {
         private enum State
@@ -135,15 +27,12 @@ namespace cookie.Cheats
         private Dictionary<State, View> m_states = null;
         private Dictionary<Type, IEditorCheatBuilder> m_fieldCheats = null;
         private List<IEditorCheat> m_editorCheats = new  List<IEditorCheat>(30);
-        private State m_currentState = State.Discovering;
-
+       
+        private State m_currentState = State.ConnectionList;
         private TcpClient m_tcpClient = null;
-        
-        // Add menu item to open the window
-        public CheatEditor()
-        {
-        }
 
+        public int DiscoverPort { get; set; } = 2137;
+     
         [MenuItem("Tools/My Custom Window")]
         public static void ShowWindow()
         {
@@ -159,20 +48,18 @@ namespace cookie.Cheats
                 .Where(type => !type.IsAbstract && !type.IsInterface && typeof(IEditorCheatBuilder).IsAssignableFrom(type))
                 .Select(type => (IEditorCheatBuilder)Activator.CreateInstance(type))
                 .ToDictionary(builder => builder.Type, builder => builder);
-            
+
             m_states = new Dictionary<State, View>(
-                new KeyValuePair<State,View>[]
+                new KeyValuePair<State, View>[]
                 {
-                    new KeyValuePair<State, View>(State.Discovering, new DiscoveringView()),
-                    new KeyValuePair<State, View>(State.ConnectionList, new ConnectionListView(
-                        m_discoveredServer, 
+                    new KeyValuePair<State, View>(State.Discovering, new DiscoveringView(this)),
+                    new KeyValuePair<State, View>(State.ConnectionList, new ConnectionListView(this,
+                        m_discoveredServer,
                         DiscoverServers,
                         ConnectToServer)),
-                    new KeyValuePair<State, View>(State.Connecting, new ConnectingView()),
-                    new KeyValuePair<State, View>(State.Cheats, new CheatsView(m_editorCheats)),
+                    new KeyValuePair<State, View>(State.Connecting, new ConnectingView(this)),
+                    new KeyValuePair<State, View>(State.Cheats, new CheatsView(this, m_editorCheats)),
                 });
-            
-           DiscoverServers();
         }
 
         private void OnGUI()
@@ -196,17 +83,18 @@ namespace cookie.Cheats
             Repaint();
             
             var discoveredServer = await SendDiscoverServerBroadcast();
-            
-            m_currentState = State.ConnectionList;
             m_discoveredServer.Clear();
             m_discoveredServer.AddRange(discoveredServer);
+            
+            m_currentState = State.ConnectionList;
             Repaint();
         }
         
         private async void ConnectToServer(IPEndPoint endPoint)
         {
             m_currentState = State.Connecting;
-
+            await Awaitable.BackgroundThreadAsync();
+            
             m_tcpClient?.Close();
             m_tcpClient ??= new TcpClient();
 
@@ -217,15 +105,20 @@ namespace cookie.Cheats
             var message = new Message(CheatServer.GetCheatsMessage, null);
             var binaryFormatter = new BinaryFormatter();
 
-            using var messageMemoryStream = new MemoryStream();
-            binaryFormatter.Serialize(messageMemoryStream, message);
-            await stream.WriteAsync(messageMemoryStream.ToArray());
-            
-            var buffer = new byte[1024 * 4];
+            using (var memoryStream = new MemoryStream())
+            {
+                binaryFormatter.Serialize(memoryStream, message);
+                await stream.WriteAsync(memoryStream.ToArray());
+            }
+
+            var buffer = new byte[4096];
             var lenght = await stream.ReadAsync(buffer);
 
-            using var responseMemoryStream = new MemoryStream(buffer, 0, lenght);
-            message = (Message)binaryFormatter.Deserialize(responseMemoryStream);
+            using (var memoryStream = new MemoryStream(buffer, 0, lenght))
+            {
+                message = (Message)binaryFormatter.Deserialize(memoryStream);
+            }
+
             var data = (CheatData[])message.Payload;
             
             foreach (var identifier in data)
@@ -237,6 +130,7 @@ namespace cookie.Cheats
                 m_editorCheats.Add(instance);
             }
             
+            await Awaitable.MainThreadAsync();
             m_currentState = State.Cheats;
             Repaint();
         }
@@ -258,13 +152,14 @@ namespace cookie.Cheats
 
         private async Task<List<IPEndPoint>> SendDiscoverServerBroadcast()
         {
+            await Awaitable.BackgroundThreadAsync();
             var list = new List<IPEndPoint>(10);
             using var udpClient = new UdpClient();
             udpClient.EnableBroadcast = true;
             var data = BitConverter.GetBytes(CheatServer.DiscoverMessage);
             var start = DateTime.UtcNow;
             
-            await udpClient.SendAsync(data, data.Length, new IPEndPoint(IPAddress.Broadcast, 2137));
+            await udpClient.SendAsync(data, data.Length, new IPEndPoint(IPAddress.Broadcast, DiscoverPort));
 
             while ((DateTime.UtcNow - start).TotalMilliseconds < 3000)
             {
@@ -276,17 +171,20 @@ namespace cookie.Cheats
                         var message = Encoding.UTF8.GetString(result.Buffer, 0, result.Buffer.Length);
                         var ipAndPort = message.Split(':');
                         var ip = IPAddress.Parse(ipAndPort[0]);
-                        list.Add(new IPEndPoint(ip, int.Parse(ipAndPort[1])));
+                        var ipEndPoint = new IPEndPoint(ip, int.Parse(ipAndPort[1]));
+                        list.Add(ipEndPoint);
                     }
                     else
                         await Task.Yield();
                 }
                 catch (ObjectDisposedException)
                 {
+                    await Awaitable.MainThreadAsync();
                     return list;
                 }
             }
 
+            await Awaitable.MainThreadAsync();
             return list;
         }
     }

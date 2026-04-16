@@ -6,7 +6,7 @@ namespace cookie.Cheats
     internal class DiscoveringView : View
     {
         private GUIStyle m_style = null;
-        public DiscoveringView()
+        public DiscoveringView(CheatEditor cheatEditor) : base(cheatEditor)
         {
             m_style = EditorStyles.helpBox;
             m_style.alignment = TextAnchor.MiddleCenter;

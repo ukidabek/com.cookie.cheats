@@ -6,6 +6,10 @@ namespace cookie.Cheats
 {
     internal class ConnectingView : View
     {
+        public ConnectingView(CheatEditor cheatEditor) : base(cheatEditor)
+        {
+        }
+
         public override void OnGUI()
         {
             GUILayout.Label("Connecting...", EditorStyles.helpBox);
@@ -16,7 +20,7 @@ namespace cookie.Cheats
     {
         private readonly List<IEditorCheat> m_cheats;
 
-        public CheatsView(List<IEditorCheat> cheats)
+        public CheatsView(CheatEditor cheatEditor, List<IEditorCheat> cheats) : base(cheatEditor)
         {
             m_cheats = cheats;
         }

@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -73,7 +72,7 @@ namespace cookie.Cheats.Server
                 try
                 {
                     var socket = await m_listen.AcceptAsync();
-                    var messageQueue = new ConcurrentQueue<Message>();
+                    var messageQueue = new ConcurrentQueue<byte[]>();
                     Task.Run(() => MessageHandling(socket, messageQueue));
                     Task.Run(() => ResponseHandling(socket, messageQueue));
                     await Task.Yield();
@@ -91,23 +90,18 @@ namespace cookie.Cheats.Server
             }
         }
 
-        private async Task ResponseHandling(Socket socket, ConcurrentQueue<Message> queue)
+        private async Task ResponseHandling(Socket socket, ConcurrentQueue<byte[]> queue)
         {
             await Awaitable.BackgroundThreadAsync();
-            var binaryFormatter = new BinaryFormatter();
-
+       
             while (true)
             {
                 try
                 {
-                    if (!socket.Connected) 
-                        break;
+                    if (!socket.Connected) break;
+
                     if (queue.TryDequeue(out var message))
-                    {
-                        using var responseStream = new MemoryStream();
-                        binaryFormatter.Serialize(responseStream, message);
-                        socket.Send(responseStream.ToArray());
-                    }
+                        socket.Send(message);
                     else
                         await Task.Yield();
                 }
@@ -118,7 +112,7 @@ namespace cookie.Cheats.Server
             }
         }
 
-        private async Task MessageHandling(Socket socket, ConcurrentQueue<Message> queue)
+        private async Task MessageHandling(Socket socket, ConcurrentQueue<byte[]> queue)
         {
             await Awaitable.BackgroundThreadAsync();
             
@@ -130,7 +124,6 @@ namespace cookie.Cheats.Server
                 try
                 {
                     var lenght = socket.Receive(data);
-
                     if (lenght == 0) break;
 
                     using var messageStream = new MemoryStream(data, 0, lenght);
@@ -141,7 +134,9 @@ namespace cookie.Cheats.Server
                     var response = handler.Handle(message.Payload);
                     if (response == null) continue;
 
-                    queue.Enqueue(response);
+                    using var responseStream = new MemoryStream();
+                    binaryFormatter.Serialize(responseStream, response);
+                    queue.Enqueue(responseStream.ToArray());
                 }
                 catch (ObjectDisposedException)
                 {
@@ -183,7 +178,7 @@ namespace cookie.Cheats.Server
         private async Task BroadcastListeningTask()
         {
             await Awaitable.BackgroundThreadAsync();
-            var data = new byte[1024];
+            var data = new byte[sizeof(int)];
             EndPoint source = new IPEndPoint(IPAddress.Any, 0);
             while (true)
             {
