@@ -52,8 +52,6 @@ namespace cookie.Cheats.UI
 
         private void OnEnable() => UpdateDisplay();
 
-        protected abstract void UpdateDisplay();
-
         protected abstract void UpdateValue(T value);
     }
 }
@@ -68,11 +66,6 @@ namespace cookie.Cheats.Server
         {
             var fieldCheat = (T)cheat;
             fieldCheat.Set(payload.Parameters.First());
-        }
-
-        public Task Update(ICheat cheat, Socket socket)
-        {
-            throw new NotImplementedException();
         }
     }
 }

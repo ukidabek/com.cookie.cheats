@@ -1,8 +1,21 @@
 using System;
-using System.Net.Sockets;
-using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Scripting;
+
+namespace cookie.Cheats.Server
+{
+    [Preserve]
+    public class MethodCheatHandler : ICheatHandler
+    {
+        public Type CheatType => typeof(MethodCheat);
+
+        public void Handle(ICheat cheat, CheatPayload payload)
+        {
+            var fieldCheat = (MethodCheat)cheat;
+            fieldCheat.Invoke(payload.Parameters);
+        }
+    }
+}
 
 namespace cookie.Cheats.UI
 {
@@ -28,24 +41,7 @@ namespace cookie.Cheats.UI
                 button.Initialize(name, m_cheat.Target, m_cheat.MemberInfo, attribute.Parameters);
             }
         }
-    }
-}
 
-namespace cookie.Cheats.Server
-{
-    [Preserve]
-    public class MethodCheatHandler : ICheatHandler
-    {
-        public Type CheatType => typeof(MethodCheat);
-        public void Handle(ICheat cheat, CheatPayload payload)
-        {
-            var fieldCheat = (MethodCheat)cheat;
-            fieldCheat.Invoke(payload.Parameters);
-        }
-
-        public Task Update(ICheat cheat, Socket socket)
-        {
-            throw new NotImplementedException();
-        }
+        public override void UpdateDisplay() { }
     }
 }

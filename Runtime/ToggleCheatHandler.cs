@@ -22,7 +22,7 @@ namespace cookie.Cheats.UI
             return type == BoolType;
         }
 
-        protected override void UpdateDisplay()
+        public override void UpdateDisplay()
         {
             if (GetMethodInfo == null) return;
             m_toggle.isOn = (bool)GetMethodInfo.Invoke(m_cheat, null);

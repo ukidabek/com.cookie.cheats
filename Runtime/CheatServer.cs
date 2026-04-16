@@ -73,8 +73,10 @@ namespace cookie.Cheats.Server
                 {
                     var socket = await m_listen.AcceptAsync();
                     var messageQueue = new ConcurrentQueue<byte[]>();
+#pragma warning disable CS4014
                     Task.Run(() => MessageHandling(socket, messageQueue));
                     Task.Run(() => ResponseHandling(socket, messageQueue));
+#pragma warning restore CS4014
                     await Task.Yield();
                 }
                 catch (ObjectDisposedException)

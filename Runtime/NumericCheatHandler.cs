@@ -23,7 +23,7 @@ namespace cookie.Cheats.UI
             m_slider.maxValue = attribute.Max;
         }
 
-        protected override void UpdateDisplay()
+        public override void UpdateDisplay()
         {
             if (GetMethodInfo == null) return;
             var value = GetMethodInfo.Invoke(m_cheat, null);
