@@ -18,9 +18,9 @@ namespace cookie.Cheats
 
     internal class CheatsView : View
     {
-        private readonly List<IEditorCheat> m_cheats;
+        private readonly IEnumerable<IEditorCheat> m_cheats;
 
-        public CheatsView(CheatEditor cheatEditor, List<IEditorCheat> cheats) : base(cheatEditor)
+        public CheatsView(CheatEditor cheatEditor, IEnumerable<IEditorCheat> cheats) : base(cheatEditor)
         {
             m_cheats = cheats;
         }

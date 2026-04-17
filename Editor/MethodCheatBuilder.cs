@@ -11,6 +11,7 @@ namespace cookie.Cheats
         {
             public int ID { get; }
             public string Name { get; }
+            public bool IsDirty => false;
             public CheatAttributeData[] Attributes { get; }
 
             public CheatData ToDataTransferObject() => null;
@@ -28,6 +29,10 @@ namespace cookie.Cheats
                 }
 
                 EditorGUILayout.EndHorizontal();
+            }
+
+            public void SetValue(object value)
+            {
             }
 
             public EditorMethodCheat(CheatData data)

@@ -13,8 +13,15 @@ namespace cookie.Cheats
         public bool CanRead;
         public bool CanWrite;
     }
-    
-    public abstract class ValueCheat<T> : Cheat<T> where T : MemberInfo
+
+    public interface IValueCheat
+    {
+        bool IsDirty { get; }
+        object Get();
+        void Set(object value);
+    }
+
+    public abstract class ValueCheat<T> : Cheat<T>, IValueCheat where T : MemberInfo
     {
         private static readonly HashSet<Type> NumericTypes = new()
         {
@@ -63,6 +70,7 @@ namespace cookie.Cheats
         }
 
         public abstract object Get();
+        
         public abstract void Set(object value);
 
         public override CheatData ToDataTransferObject()

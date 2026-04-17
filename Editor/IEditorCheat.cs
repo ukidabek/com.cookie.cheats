@@ -7,5 +7,6 @@ namespace cookie.Cheats
     {
         event Action<CheatPayload> Update;
         void OnGUI();
+        void SetValue(object value);
     }
 }

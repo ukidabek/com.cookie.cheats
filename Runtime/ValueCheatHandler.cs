@@ -1,8 +1,6 @@
 using System;
 using System.Linq;
-using System.Net.Sockets;
 using System.Reflection;
-using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -60,8 +58,8 @@ namespace cookie.Cheats.Server
 {
     public abstract class ValueCheatHandler<T, T1> : ICheatHandler where T : ValueCheat<T1> where T1 : MemberInfo
     {
-        public  Type CheatType =>  typeof(T);
-        
+        public Type CheatType => typeof(T);
+
         public void Handle(ICheat cheat, CheatPayload payload)
         {
             var fieldCheat = (T)cheat;

@@ -6,9 +6,24 @@ namespace cookie.Cheats
     public abstract class Cheat<T> : ICheat where T : MemberInfo
     {
         public int ID { get; }
+        
         public readonly object Target;
         public string Name { get; }
+        
+        private bool m_isDirty  = false;
+        public bool IsDirty
+        {
+            get
+            {
+                var status = m_isDirty;
+                m_isDirty = false;
+                return status;
+            }
+            protected set => m_isDirty = value;
+        }
+        
         public readonly T MemberInfo = null;
+        
         public CheatAttributeData[] Attributes { get; }
         
         protected Cheat(int id, object target, T memberInfo)

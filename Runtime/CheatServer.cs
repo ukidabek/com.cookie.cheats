@@ -8,7 +8,6 @@ using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
-using Unity.Plastic.Newtonsoft.Json.Converters;
 using UnityEngine;
 
 namespace cookie.Cheats.Server
@@ -18,6 +17,7 @@ namespace cookie.Cheats.Server
         public const int DiscoverMessage = 0;
         public const int GetCheatsMessage = 1;
         public const int SetPayload = 2;
+        public const int UpdateCheat = 3;
         
         [SerializeField] private int m_discoverPort = 2137;
         [SerializeField] private int m_listenPort = 2138;
@@ -30,8 +30,10 @@ namespace cookie.Cheats.Server
 
         private Dictionary<Type, ICheatHandler> m_cheatChandlerDictionary;
         private Dictionary<int, MessageHandler> m_messageHandlerDictionary;
-        
+        private Dictionary<Socket, ConcurrentQueue<byte[]>> m_messageQueueDictionary = new  Dictionary<Socket, ConcurrentQueue<byte[]>>();
         public IEnumerable<ICheat> Cheats => CheatDatabase.Instance.ChetDictionary.Values;
+        
+        private Queue<ICheat> m_cheatValidationQueue = new Queue<ICheat>(100);
 
         private void Start()
         {
@@ -63,6 +65,32 @@ namespace cookie.Cheats.Server
             m_listen.Bind(new IPEndPoint(m_listenAddress, m_listenPort));
             m_listen.Listen(m_connectionCount);
             _ = ConnectionAccept();
+            
+            
+        }
+
+        private void Update()
+        {
+            if (m_cheatValidationQueue.Count == 0)
+            {
+                foreach (var cheatHandler in Cheats)
+                    m_cheatValidationQueue.Enqueue(cheatHandler);
+            }
+            
+            var cheat = m_cheatValidationQueue.Dequeue();
+            if (!CheatDatabase.Instance.ChetDictionary.ContainsKey(cheat.ID)) return;
+            if (cheat is IValueCheat { IsDirty: true } valueCheat)
+            {
+                var message = new Message(UpdateCheat, new[]
+                {
+                    cheat.ID,
+                    valueCheat.Get(),
+                });
+                var data = SerializeMessage(message);
+                foreach (var concurrentQueue in m_messageQueueDictionary.Values)
+                    concurrentQueue.Enqueue(data);
+            }
+            m_cheatValidationQueue.Enqueue(cheat);
         }
 
         private async Task ConnectionAccept()
@@ -74,6 +102,9 @@ namespace cookie.Cheats.Server
                 {
                     var socket = await m_listen.AcceptAsync();
                     var messageQueue = new ConcurrentQueue<byte[]>();
+                    await Awaitable.MainThreadAsync();
+                    m_messageQueueDictionary.Add(socket, messageQueue);
+                    await Awaitable.BackgroundThreadAsync();
 #pragma warning disable CS4014
                     Task.Run(() => MessageHandling(socket, messageQueue));
                     Task.Run(() => ResponseHandling(socket, messageQueue));
@@ -152,7 +183,12 @@ namespace cookie.Cheats.Server
             {
                 try
                 {
-                    if (0 == ReceiveMessage<Message>(socket, out var message, data)) continue;
+                    if (0 == ReceiveMessage<Message>(socket, out var message, data))
+                    {
+                        await Awaitable.MainThreadAsync();
+                        m_messageQueueDictionary.Remove(socket);
+                        break;
+                    }
                     
                     if (!m_messageHandlerDictionary.TryGetValue(message.ID, out var handler)) continue;
 

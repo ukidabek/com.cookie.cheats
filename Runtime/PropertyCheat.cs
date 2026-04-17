@@ -17,6 +17,8 @@ namespace cookie.Cheats
             if (!CanWrite) return;
             value = Convert.ChangeType(value, ValueType);
             MemberInfo.SetValue(Target, value);
+            IsDirty = true;
         }
+        
     }
 }

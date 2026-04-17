@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
 using cookie.Cheats.Server;
@@ -26,18 +24,16 @@ namespace cookie.Cheats
         private readonly List<IPEndPoint> m_discoveredServer = new List<IPEndPoint>(10);
         private Dictionary<State, View> m_states = null;
         private Dictionary<Type, IEditorCheatBuilder> m_fieldCheats = null;
-        private List<IEditorCheat> m_editorCheats = new  List<IEditorCheat>(30);
-       
+        private Dictionary<int, IEditorCheat> m_editorCheats = new  Dictionary<int, IEditorCheat>(30);
         private State m_currentState = State.ConnectionList;
         private TcpClient m_tcpClient = null;
 
         public int DiscoverPort { get; set; } = 2137;
      
-        [MenuItem("Tools/My Custom Window")]
+        [MenuItem("Tools/Cheat remote")]
         public static void ShowWindow()
         {
-            // Create and show the window
-            var window = GetWindow<CheatEditor>("My Window");
+            var window = GetWindow<CheatEditor>("Cheat remote");
             window.Show();
         }
 
@@ -58,7 +54,7 @@ namespace cookie.Cheats
                         DiscoverServers,
                         ConnectToServer)),
                     new KeyValuePair<State, View>(State.Connecting, new ConnectingView(this)),
-                    new KeyValuePair<State, View>(State.Cheats, new CheatsView(this, m_editorCheats)),
+                    new KeyValuePair<State, View>(State.Cheats, new CheatsView(this, m_editorCheats.Values)),
                 });
         }
 
@@ -116,12 +112,33 @@ namespace cookie.Cheats
                 
                     var instance = builder.Build(identifier);
                     instance.Update += SendPayload;
-                    m_editorCheats.Add(instance);
+                    m_editorCheats.Add(instance.ID, instance);
                 }
             
                 await Awaitable.MainThreadAsync();
                 m_currentState = State.Cheats;
                 Repaint();
+                await Awaitable.BackgroundThreadAsync();
+                
+                while (true)
+                {
+                   var received = CheatServer.ReceiveMessage(m_tcpClient.Client, out message);
+                   if (received == 0) return;
+
+                   if (message.ID == CheatServer.UpdateCheat)
+                   {
+                       var cheatDataObject = (object[])message.Payload;
+                       var id = (int)cheatDataObject[0];
+                       var value = cheatDataObject[1];
+                       if (!m_editorCheats.TryGetValue(id, out var editorCheat)) continue;
+                       editorCheat.SetValue(value);
+                       await Awaitable.MainThreadAsync();
+                       Repaint();
+                       await Awaitable.BackgroundThreadAsync();
+                   }
+                   
+                   await Task.Yield();
+                }
             }
             catch (Exception e)
             {

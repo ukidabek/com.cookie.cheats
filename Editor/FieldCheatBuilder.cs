@@ -11,6 +11,7 @@ namespace cookie.Cheats
         {
             public int ID { get; }
             public string Name { get; }
+            public bool IsDirty => false;
             public CheatAttributeData[] Attributes { get; }
 
             public CheatData ToDataTransferObject() => null;
@@ -53,7 +54,11 @@ namespace cookie.Cheats
                 m_isNumericValue = data.IsNumeric;
                 m_isWholeNumber = data.IsWholeNumber;
                 
-                var value = data.Value;
+                SetValue(data.Value);
+            }
+
+            public void SetValue(object value)
+            {
                 if (m_isNumericValue)
                     m_numericValue = (float)Convert.ChangeType(value, typeof(float));
                 else
