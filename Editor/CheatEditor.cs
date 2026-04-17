@@ -92,47 +92,42 @@ namespace cookie.Cheats
         
         private async void ConnectToServer(IPEndPoint endPoint)
         {
-            m_currentState = State.Connecting;
-            await Awaitable.BackgroundThreadAsync();
-            
-            m_tcpClient?.Close();
-            m_tcpClient ??= new TcpClient();
-
-            await m_tcpClient.ConnectAsync(endPoint.Address, endPoint.Port);
-
-            var stream = m_tcpClient.GetStream();
-              
-            var message = new Message(CheatServer.GetCheatsMessage, null);
-            var binaryFormatter = new BinaryFormatter();
-
-            using (var memoryStream = new MemoryStream())
+            try
             {
-                binaryFormatter.Serialize(memoryStream, message);
-                await stream.WriteAsync(memoryStream.ToArray());
-            }
-
-            var buffer = new byte[4096];
-            var lenght = await stream.ReadAsync(buffer);
-
-            using (var memoryStream = new MemoryStream(buffer, 0, lenght))
-            {
-                message = (Message)binaryFormatter.Deserialize(memoryStream);
-            }
-
-            var data = (CheatData[])message.Payload;
+                m_currentState = State.Connecting;
+                await Awaitable.BackgroundThreadAsync();
             
-            foreach (var identifier in data)
-            {
-                var type = Type.GetType(identifier.AssemblyQualifiedName);
-                if (!m_fieldCheats.TryGetValue(type, out var builder)) continue;
-                var instance = builder.Build(identifier);
-                instance.Update += SendPayload;
-                m_editorCheats.Add(instance);
-            }
+                m_tcpClient?.Close();
+                m_tcpClient ??= new TcpClient();
+
+                await m_tcpClient.ConnectAsync(endPoint.Address, endPoint.Port);
             
-            await Awaitable.MainThreadAsync();
-            m_currentState = State.Cheats;
-            Repaint();
+                var message = new Message(CheatServer.GetCheatsMessage, null);
+                CheatServer.SendMessage(m_tcpClient.Client, message);
+                CheatServer.ReceiveMessage(m_tcpClient.Client, out message);
+
+                var data = (CheatData[])message.Payload;
+
+                foreach (var identifier in data)
+                {
+                    var type = Type.GetType(identifier.AssemblyQualifiedName);
+                
+                    if (!m_fieldCheats.TryGetValue(type, out var builder)) continue;
+                
+                    var instance = builder.Build(identifier);
+                    instance.Update += SendPayload;
+                    m_editorCheats.Add(instance);
+                }
+            
+                await Awaitable.MainThreadAsync();
+                m_currentState = State.Cheats;
+                Repaint();
+            }
+            catch (Exception e)
+            {
+                await Awaitable.MainThreadAsync();
+                Debug.LogException(e);
+            }
         }
 
         private void SendPayload(CheatPayload payload)
