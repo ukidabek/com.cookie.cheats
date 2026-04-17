@@ -8,6 +8,7 @@ using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
+using Unity.Plastic.Newtonsoft.Json.Converters;
 using UnityEngine;
 
 namespace cookie.Cheats.Server
@@ -114,41 +115,54 @@ namespace cookie.Cheats.Server
             }
         }
 
+        public static byte[] SerializeMessage(object payload)
+        {
+            var binaryFormater = new BinaryFormatter();
+            using var memoryStream = new MemoryStream();
+            binaryFormater.Serialize(memoryStream, payload);
+            return memoryStream.ToArray();
+        }
+
+        public static void SendMessage(Socket socket, object payload) => socket.Send(SerializeMessage(payload));
+
+        public static int ReceiveMessage<T>(Socket socket, out T output, byte[] buffer = null, int bufferSize = 4096)
+        {
+            var binaryFormatter = new BinaryFormatter();
+            buffer ??= new byte[bufferSize];
+            
+            var lenght = socket.Receive(buffer);
+            if (lenght == 0)
+            {
+                output = default(T);
+                return 0;
+            }
+            
+            using var messageStream = new MemoryStream(buffer,  0, lenght);
+            output = (T)binaryFormatter.Deserialize(messageStream);
+            
+            return lenght;
+        }
+
         private async Task MessageHandling(Socket socket, ConcurrentQueue<byte[]> queue)
         {
             await Awaitable.BackgroundThreadAsync();
-            
             var data = new byte[4096];
-            var binaryFormatter = new BinaryFormatter();
             
             while (true)
             {
                 try
                 {
-                    var lenght = socket.Receive(data);
-                    if (lenght == 0) break;
-
-                    using var messageStream = new MemoryStream(data, 0, lenght);
-                    var message = (Message)binaryFormatter.Deserialize(messageStream);
-
+                    if (0 == ReceiveMessage<Message>(socket, out var message, data)) continue;
+                    
                     if (!m_messageHandlerDictionary.TryGetValue(message.ID, out var handler)) continue;
 
                     var response = handler.Handle(message.Payload);
+                    
                     if (response == null) continue;
-
-                    using var responseStream = new MemoryStream();
-                    binaryFormatter.Serialize(responseStream, response);
-                    queue.Enqueue(responseStream.ToArray());
+                    
+                    queue.Enqueue(SerializeMessage(response));
                 }
-                catch (ObjectDisposedException)
-                {
-                    break;
-                }
-                catch (SocketException)
-                {
-                    break;
-                }
-                catch (IOException)
+                catch (Exception e) when (e is ObjectDisposedException or SocketException or IOException)
                 {
                     break;
                 }

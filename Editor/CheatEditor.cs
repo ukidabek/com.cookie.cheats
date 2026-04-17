@@ -135,19 +135,12 @@ namespace cookie.Cheats
             Repaint();
         }
 
-        private async void SendPayload(CheatPayload payload)
+        private void SendPayload(CheatPayload payload)
         {
             if (m_tcpClient == null) return;
-
-            var stream = m_tcpClient.GetStream();
-
-            var binaryFormater = new BinaryFormatter();
+            
             var message = new Message(CheatServer.SetPayload, payload);
-
-            using var memoryStream = new MemoryStream();
-            binaryFormater.Serialize(memoryStream, message);
-
-            await stream.WriteAsync(memoryStream.ToArray());
+            CheatServer.SendMessage(m_tcpClient.Client, message);
         }
 
         private async Task<List<IPEndPoint>> SendDiscoverServerBroadcast()
