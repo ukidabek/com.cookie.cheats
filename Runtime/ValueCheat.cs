@@ -5,7 +5,7 @@ using System.Reflection;
 namespace cookie.Cheats
 {
     [Serializable]
-    public class ValueCheatData :  CheatData
+    public class ValueCheatData : CheatData
     {
         public object Value;
         public bool IsNumeric;

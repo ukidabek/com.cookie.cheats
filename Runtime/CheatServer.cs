@@ -35,6 +35,8 @@ namespace cookie.Cheats.Server
         
         private Queue<ICheat> m_cheatValidationQueue = new Queue<ICheat>(100);
 
+        private ItemProcessor<int, ICheat> m_itemProcessor = null;
+
         private void Start()
         {
             var types = AppDomain.CurrentDomain.GetAssemblies()
@@ -65,33 +67,28 @@ namespace cookie.Cheats.Server
             m_listen.Bind(new IPEndPoint(m_listenAddress, m_listenPort));
             m_listen.Listen(m_connectionCount);
             _ = ConnectionAccept();
-            
-            
+
+            m_itemProcessor = new ItemProcessor<int, ICheat>(CheatDatabase.Instance.ChetDictionary, 
+                cheat =>
+                {
+                    if (cheat is not IValueCheat { IsDirty: true } valueCheat) return false;
+                    
+                    var message = new Message(UpdateCheat, new[]
+                    {
+                        cheat.ID,
+                        valueCheat.Get(),
+                    });
+                    
+                    var data = SerializeMessage(message);
+                    foreach (var concurrentQueue in m_messageQueueDictionary.Values)
+                        concurrentQueue.Enqueue(data);
+
+                    return false;
+                },
+                cheat => cheat.ID);
         }
 
-        private void Update()
-        {
-            if (m_cheatValidationQueue.Count == 0)
-            {
-                foreach (var cheatHandler in Cheats)
-                    m_cheatValidationQueue.Enqueue(cheatHandler);
-            }
-            
-            var cheat = m_cheatValidationQueue.Dequeue();
-            if (!CheatDatabase.Instance.ChetDictionary.ContainsKey(cheat.ID)) return;
-            if (cheat is IValueCheat { IsDirty: true } valueCheat)
-            {
-                var message = new Message(UpdateCheat, new[]
-                {
-                    cheat.ID,
-                    valueCheat.Get(),
-                });
-                var data = SerializeMessage(message);
-                foreach (var concurrentQueue in m_messageQueueDictionary.Values)
-                    concurrentQueue.Enqueue(data);
-            }
-            m_cheatValidationQueue.Enqueue(cheat);
-        }
+        private void Update() => m_itemProcessor.Process();
 
         private async Task ConnectionAccept()
         {
@@ -164,7 +161,7 @@ namespace cookie.Cheats.Server
             var lenght = socket.Receive(buffer);
             if (lenght == 0)
             {
-                output = default(T);
+                output = default;
                 return 0;
             }
             
