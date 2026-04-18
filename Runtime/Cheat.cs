@@ -9,8 +9,8 @@ namespace cookie.Cheats
         
         public readonly object Target;
         public string Name { get; }
-        
-        private bool m_isDirty  = false;
+
+        private bool m_isDirty = false;
         public bool IsDirty
         {
             get

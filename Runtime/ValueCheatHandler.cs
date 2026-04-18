@@ -12,7 +12,6 @@ namespace cookie.Cheats.UI
         private static readonly Type ValueCheatType = typeof(ValueCheat<>);
         protected static readonly BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy;
 
-        protected PropertyInfo ValueTypeFieldInfo = null;
         protected PropertyInfo IsWholeNumberFieldInfo = null;
         protected PropertyInfo CanWriteFieldInfo = null;
         protected MethodInfo GetMethodInfo = null;
@@ -51,6 +50,14 @@ namespace cookie.Cheats.UI
         private void OnEnable() => UpdateDisplay();
 
         protected abstract void UpdateValue(T value);
+
+        protected Type GetValueType(ICheat cheat)
+        {
+            var type = cheat.GetType();
+            var valueTypeFieldInfo = type.GetProperty("ValueType", ValueCheatHandler<object>.bindingFlags);
+            type = (Type)valueTypeFieldInfo.GetValue(cheat);
+            return type;
+        }
     }
 }
 

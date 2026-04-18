@@ -7,7 +7,7 @@ namespace cookie.Cheats.UI
 {
     public class ToggleCheatHandler : ValueCheatHandler<bool>
     {
-        private static readonly Type BoolType = typeof(bool);
+        private readonly Type BoolType = typeof(bool);
         
         [SerializeField] private Toggle m_toggle = null;
 
@@ -17,8 +17,8 @@ namespace cookie.Cheats.UI
         {
             if (!base.CanHandle(cheat)) return false;
             var type = cheat.GetType();
-            ValueTypeFieldInfo = type.GetProperty("ValueType", bindingFlags);
-            type = (Type)ValueTypeFieldInfo.GetValue(cheat);
+            var valueTypeFieldInfo = type.GetProperty("ValueType", bindingFlags);
+            type = (Type)valueTypeFieldInfo.GetValue(cheat);
             return type == BoolType;
         }
 

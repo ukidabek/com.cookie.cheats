@@ -32,8 +32,6 @@ namespace cookie.Cheats.Server
         private Dictionary<int, MessageHandler> m_messageHandlerDictionary;
         private Dictionary<Socket, ConcurrentQueue<byte[]>> m_messageQueueDictionary = new  Dictionary<Socket, ConcurrentQueue<byte[]>>();
         public IEnumerable<ICheat> Cheats => CheatDatabase.Instance.ChetDictionary.Values;
-        
-        private Queue<ICheat> m_cheatValidationQueue = new Queue<ICheat>(100);
 
         private ItemProcessor<int, ICheat> m_itemProcessor = null;
 

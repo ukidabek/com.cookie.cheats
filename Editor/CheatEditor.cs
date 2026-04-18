@@ -100,7 +100,7 @@ namespace cookie.Cheats
             
                 var message = new Message(CheatServer.GetCheatsMessage, null);
                 CheatServer.SendMessage(m_tcpClient.Client, message);
-                CheatServer.ReceiveMessage(m_tcpClient.Client, out message);
+                CheatServer.ReceiveMessage(m_tcpClient.Client, out message, null, 20480);
 
                 var data = (CheatData[])message.Payload;
 

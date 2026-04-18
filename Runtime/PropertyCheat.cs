@@ -5,7 +5,7 @@ namespace cookie.Cheats
 {
     public class PropertyCheat : ValueCheat<PropertyInfo>
     {
-        public PropertyCheat(int id, object target, PropertyInfo propertyInfo) 
+        public PropertyCheat(int id, object target, PropertyInfo propertyInfo)
             : base(id, target, propertyInfo, propertyInfo.PropertyType, propertyInfo.CanRead, propertyInfo.CanWrite)
         {
         }
@@ -19,6 +19,5 @@ namespace cookie.Cheats
             MemberInfo.SetValue(Target, value);
             IsDirty = true;
         }
-        
     }
 }
