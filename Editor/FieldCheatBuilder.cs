@@ -22,8 +22,7 @@ namespace cookie.Cheats
             
             private MemberFlags m_flags = MemberFlags.None;
             private readonly MemberFlags m_mask = MemberFlags.IsNumeric | MemberFlags.IsWholeNumber | MemberFlags.IsEnum;
-
-            private object m_value = null;
+            private readonly MemberFlags m_maskedFlags;
             
             private Array m_enumValues = null;
             private string[] m_enumValuesNames = null;
@@ -47,12 +46,7 @@ namespace cookie.Cheats
                     m_enumValuesNames = Enum.GetNames(ValueType);
                 }
 
-                m_value = (m_flags & m_mask) switch
-                {
-                    MemberFlags.IsNumeric | MemberFlags.IsWholeNumber => 0f,
-                    MemberFlags.IsNumeric => 0f,
-                    _ => false,
-                };
+                m_maskedFlags = m_flags & m_mask;
             }
             
             public void OnGUI()
@@ -61,7 +55,7 @@ namespace cookie.Cheats
                 var attribute = Attributes.First();
                 var name = string.IsNullOrEmpty(attribute.Name) ? Name : attribute.Name;
              
-                switch (m_flags & m_mask)
+                switch (m_maskedFlags)
                 {
                     case MemberFlags.IsNumeric | MemberFlags.IsWholeNumber:
                         m_intValue = EditorGUILayout.IntSlider(name, m_intValue, (int)attribute.Min, (int)attribute.Max);
@@ -80,7 +74,7 @@ namespace cookie.Cheats
                 if (EditorGUI.EndChangeCheck())
                     Update.Invoke(new CheatPayload(ID, new object[]
                     {
-                        (m_flags & m_mask) switch
+                        m_maskedFlags switch
                         {
                             MemberFlags.IsNumeric | MemberFlags.IsWholeNumber => m_intValue,
                             MemberFlags.IsNumeric => m_floatValue,
@@ -92,7 +86,7 @@ namespace cookie.Cheats
 
             public void SetValue(object value)
             {
-                switch (m_flags & m_mask)
+                switch (m_maskedFlags)
                 {
                     case MemberFlags.IsNumeric | MemberFlags.IsWholeNumber:
                         m_intValue = (int)value;
