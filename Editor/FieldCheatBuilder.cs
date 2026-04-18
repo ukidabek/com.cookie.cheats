@@ -61,7 +61,7 @@ namespace cookie.Cheats
                         m_intValue = EditorGUILayout.IntSlider(name, m_intValue, (int)attribute.Min, (int)attribute.Max);
                         break;
                     case MemberFlags.IsNumeric:
-                        m_floatValue = EditorGUILayout.Slider(name, (float)m_floatValue, attribute.Min, attribute.Max);
+                        m_floatValue = EditorGUILayout.Slider(name, m_floatValue, attribute.Min, attribute.Max);
                         break;
                     case MemberFlags.IsEnum:
                         m_index = EditorGUILayout.Popup(name, m_index, m_enumValuesNames);

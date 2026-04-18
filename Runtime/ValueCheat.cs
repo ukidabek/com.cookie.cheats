@@ -4,32 +4,6 @@ using System.Reflection;
 
 namespace cookie.Cheats
 {
-    [Serializable]
-    public class ValueCheatData : CheatData
-    {
-        public MemberFlags MemberFlags;
-        public string ValueAssemblyQualifiedName;
-    }
-
-    public interface IValueCheat
-    {
-        bool IsDirty { get; }
-        object Get();
-        void Set(object value);
-    }
-
-    [Flags]
-    public enum MemberFlags : byte
-    {
-        None          = 0,
-        IsNumeric     = 1 << 0, // 0000 0001
-        IsWholeNumber = 1 << 1, // 0000 0010
-        CanRead       = 1 << 2, // 0000 0100
-        CanWrite      = 1 << 3, // 0000 1000
-        IsEnum        = 1 << 4  // 0001 0000
-    }
-
-
     public abstract class ValueCheat<T> : Cheat<T>, IValueCheat where T : MemberInfo
     {
         private static readonly HashSet<Type> NumericTypes = new()
@@ -61,6 +35,18 @@ namespace cookie.Cheats
         
         protected MemberFlags m_flags = MemberFlags.None;
         
+        private object m_lastValue;
+        public bool IsDirty
+        {
+            get
+            {
+                var currentValue = Get();
+                if (Equals(currentValue, m_lastValue)) return false;
+                m_lastValue = currentValue;
+                return true;
+            }
+        }
+        
         public Type ValueType { get; }
         public bool IsNumeric => m_flags.HasFlag(MemberFlags.IsNumeric);
         public bool IsWholeNumber => m_flags.HasFlag(MemberFlags.IsWholeNumber);
@@ -75,8 +61,6 @@ namespace cookie.Cheats
                 throw new ArgumentException($"Value type cheat should have ony one {nameof(CheatAttribute)}!");
             
             ValueType = valueType;
-            
-            IsDirty = true;
             
             if (NumericTypes.Contains(ValueType)) m_flags |= MemberFlags.IsNumeric;
             if (WholeNumberTypes.Contains(ValueType)) m_flags |= MemberFlags.IsWholeNumber;

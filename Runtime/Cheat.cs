@@ -9,18 +9,6 @@ namespace cookie.Cheats
         
         public readonly object Target;
         public string Name { get; }
-
-        private bool m_isDirty = false;
-        public bool IsDirty
-        {
-            get
-            {
-                var status = m_isDirty;
-                m_isDirty = false;
-                return status;
-            }
-            protected set => m_isDirty = value;
-        }
         
         public readonly T MemberInfo = null;
         
