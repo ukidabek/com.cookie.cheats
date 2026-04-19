@@ -14,8 +14,13 @@ namespace cookie.Cheats.UI
         
         protected override UnityEvent<float> OnValueChanged => m_slider.onValueChanged;
 
-        public override bool CanHandle(ICheat cheat) => base.CanHandle(cheat) && !GetValueType(cheat).IsEnum;
-        
+        public override bool CanHandle(ICheat cheat)
+        {
+            var valueType = GetValueType(cheat);
+            var multiValueTypes = TypeGroups.MultiValueTypes;
+            return base.CanHandle(cheat) && !valueType.IsEnum && !multiValueTypes.Contains(valueType);
+        }
+
         public override void Initialize(ICheat cheat)
         {
             base.Initialize(cheat);

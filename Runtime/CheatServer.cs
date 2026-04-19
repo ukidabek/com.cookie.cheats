@@ -74,7 +74,7 @@ namespace cookie.Cheats.Server
                     var message = new Message(UpdateCheat, new[]
                     {
                         cheat.ID,
-                        valueCheat.Get(),
+                        valueCheat.GetSerialized(),
                     });
                     
                     var data = SerializeMessage(message);

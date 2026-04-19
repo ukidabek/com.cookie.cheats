@@ -1,37 +1,11 @@
 using System;
-using System.Collections.Generic;
 using System.Reflection;
 
 namespace cookie.Cheats
 {
     public abstract class ValueCheat<T> : Cheat<T>, IValueCheat where T : MemberInfo
     {
-        private static readonly HashSet<Type> NumericTypes = new()
-        {
-            typeof(byte),
-            typeof(sbyte),
-            typeof(short),
-            typeof(ushort),
-            typeof(int),
-            typeof(uint),
-            typeof(long),
-            typeof(ulong),
-            typeof(float),
-            typeof(double),
-            typeof(decimal)
-        };
-        
-        private static readonly HashSet<Type> WholeNumberTypes = new()
-        {
-            typeof(byte),
-            typeof(sbyte),
-            typeof(short),
-            typeof(ushort),
-            typeof(int),
-            typeof(uint),
-            typeof(long),
-            typeof(ulong)
-        };
+   
         
         protected MemberFlags m_flags = MemberFlags.None;
         
@@ -46,7 +20,7 @@ namespace cookie.Cheats
                 return true;
             }
         }
-        
+
         public Type ValueType { get; }
         public bool IsNumeric => m_flags.HasFlag(MemberFlags.IsNumeric);
         public bool IsWholeNumber => m_flags.HasFlag(MemberFlags.IsWholeNumber);
@@ -62,14 +36,24 @@ namespace cookie.Cheats
             
             ValueType = valueType;
             
-            if (NumericTypes.Contains(ValueType)) m_flags |= MemberFlags.IsNumeric;
-            if (WholeNumberTypes.Contains(ValueType)) m_flags |= MemberFlags.IsWholeNumber;
+            if (TypeGroups.NumericTypes.Contains(ValueType)) m_flags |= MemberFlags.IsNumeric;
+            if (TypeGroups.WholeNumberTypes.Contains(ValueType)) m_flags |= MemberFlags.IsWholeNumber;
             if (canRead) m_flags |= MemberFlags.CanRead;
             if (canWrite) m_flags |= MemberFlags.CanWrite;
             if (ValueType.IsEnum) m_flags |= MemberFlags.IsEnum;
         }
 
         public abstract object Get();
+        
+        public object GetSerialized()
+        {
+            var value = Get();
+
+            if (TypeGroups.MultiValueTypes.Contains(ValueType))
+                return null;
+            
+            return value;
+        }
         
         public abstract void Set(object value);
 
