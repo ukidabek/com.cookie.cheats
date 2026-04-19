@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Reflection;
 using TMPro;
 using UnityEngine;
@@ -65,7 +64,7 @@ namespace cookie.Cheats.UI
             base.Initialize(cheat);
             m_vectorType = GetValueType(cheat);
             m_axisCount = TypeGroups.AxisCountDictionary[m_vectorType];
-            m_isWholeNumber = TypeGroups.WholeNumberTypes.Contains(m_vectorType);
+            m_isWholeNumber = TypeGroups.WholeNumberVectorTypes.Contains(m_vectorType);
             
             var cheatAttribute = cheat.Attributes[0];
             m_minValue = cheatAttribute.Min;
@@ -76,31 +75,48 @@ namespace cookie.Cheats.UI
             m_setterMethodInfo = m_vectorType.GetMethod("set_Item");
             
             var fieldType = m_isWholeNumber ? typeof(int) : typeof(float);
-            
+            var parameters = new object[] { 0 };
             for (var i = 0; i < 4; i++)
             {
+                parameters[0] = i;
                 var pair = m_ui[i];
                 var validAxis = i < m_axisCount;
-                var value = validAxis ? m_getterMethodInfo.Invoke(valute, new object[] { i }) : 0f;
+                var value = validAxis ? m_getterMethodInfo.Invoke(valute, parameters) : 0f;
                 m_axisHandlers[i] = new AxisHandler(pair.Item1, pair.Item2, fieldType, value, m_minValue, m_maxValue);
                 m_axisHandlers[i].SetActive(validAxis);
+                m_axisHandlers[i].OnValueChanged += XXX;
             }
         }
-        
-        protected override void UpdateValue(object value)
+
+        private void XXX()
         {
-            for (var i = 0; i < m_axisCount; i++)
+            var instance = Activator.CreateInstance(m_vectorType);
+            var valuesCount = TypeGroups.AxisCountDictionary[m_vectorType];
+            var parameters = new object[2];
+            
+            for (var i = 0; i < valuesCount; i++)
             {
-                var axisValue = m_getterMethodInfo.Invoke(value, new object[] { i });
-                m_axisHandlers[i].Value = axisValue;
+                parameters[0] = i;
+                parameters[1] = m_axisHandlers[i].Value;
+                m_setterMethodInfo.Invoke(instance, parameters);
             }
+            
+            OnValueChanged.Invoke(instance);
         }
-        
+
+        protected override void UpdateValue(object value) => SetMethodInfo.Invoke(m_cheat, new[] { value });
+
         public override void UpdateDisplay()
         {
             if (m_cheat == null) return;
             var currentValue = GetMethodInfo.Invoke(m_cheat, null);
-            UpdateValue(currentValue);
+            var parameters = new object[] { 0 };
+            for (var i = 0; i < m_axisCount; i++)
+            {
+                parameters[0] = i;
+                var axisValue = m_getterMethodInfo.Invoke(currentValue, parameters);
+                m_axisHandlers[i].Value = axisValue;
+            }
         }
     }
 }

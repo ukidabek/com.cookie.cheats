@@ -6,22 +6,26 @@ using UnityEngine.UI;
 
 namespace cookie.Cheats.UI
 {
-    [Serializable]
     public class AxisHandler
     {
-        [SerializeField] private TMP_InputField m_field = null;
-        [SerializeField] private Slider m_slider = null;
-        
-        public FieldInfo FieldInfo { get; private set; }
+        private TMP_InputField m_field = null;
+        private Slider m_slider = null;
         
         private readonly Type m_floatType = typeof(float);
-        private readonly Type m_fieldType = default;
+        private readonly Type m_fieldType = null;
         private readonly bool m_isWholeNumber = false;
+        
+        public event Action OnValueChanged;
         
         public object Value
         {
             get => Convert.ChangeType(m_slider.value, m_fieldType);
-            set => m_slider.value = (float)Convert.ChangeType(value, m_fieldType);
+            set
+            {
+                var convertedValue = Convert.ChangeType(value, m_floatType);
+                m_slider.value = (float)convertedValue;
+                OnSliderChange(m_slider.value);
+            }
         }
 
         public AxisHandler(TMP_InputField field, 
@@ -47,11 +51,13 @@ namespace cookie.Cheats.UI
         {
             var value = float.Parse(arg0);
             m_slider.value = value;
+            OnValueChanged?.Invoke();
         }
         
         private void OnSliderChange(float arg0)
         {
-            m_field.text = m_isWholeNumber ? arg0.ToString() : arg0.ToString("F1");
+            m_field.text = m_isWholeNumber ? arg0.ToString("0") : arg0.ToString("F1");
+            OnValueChanged?.Invoke();
         }
 
         public void SetActive(bool status)

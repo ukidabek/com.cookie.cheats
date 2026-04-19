@@ -3,10 +3,43 @@ using System.Reflection;
 
 namespace cookie.Cheats
 {
+    [Serializable]
+    public class MultipleValueTypeProxy
+    {
+        public readonly object[] Values = null;
+
+        public MultipleValueTypeProxy(object value)
+        {
+            var type = value.GetType();
+            
+            var valuesCount = TypeGroups.AxisCountDictionary[type];
+            Values = new object[valuesCount];
+
+            var m_getterMethodInfo = type.GetMethod("get_Item");
+            var parameters = new object[] { 0 };
+            for (var i = 0; i < valuesCount; i++) 
+                Values[i] = m_getterMethodInfo.Invoke(value, parameters);
+        }
+
+        public object Parse(Type type)
+        {
+            var instance = Activator.CreateInstance(type);
+            var valuesCount = TypeGroups.AxisCountDictionary[type];
+            var m_setterMethodInfo = type.GetMethod("set_Item");
+            var parameters = new object[] { 0 , 0};
+            for (var i = 0; i < valuesCount; i++)
+            {
+                parameters[0] = i;
+                parameters[1] = Values[i];
+                m_setterMethodInfo.Invoke(instance, parameters);
+            }
+            
+            return instance;
+        }
+    }
+    
     public abstract class ValueCheat<T> : Cheat<T>, IValueCheat where T : MemberInfo
     {
-   
-        
         protected MemberFlags m_flags = MemberFlags.None;
         
         private object m_lastValue;
@@ -35,12 +68,19 @@ namespace cookie.Cheats
                 throw new ArgumentException($"Value type cheat should have ony one {nameof(CheatAttribute)}!");
             
             ValueType = valueType;
-            
+
             if (TypeGroups.NumericTypes.Contains(ValueType)) m_flags |= MemberFlags.IsNumeric;
-            if (TypeGroups.WholeNumberTypes.Contains(ValueType)) m_flags |= MemberFlags.IsWholeNumber;
             if (canRead) m_flags |= MemberFlags.CanRead;
             if (canWrite) m_flags |= MemberFlags.CanWrite;
             if (ValueType.IsEnum) m_flags |= MemberFlags.IsEnum;
+            if (TypeGroups.MultiValueTypes.Contains(ValueType)) m_flags |= MemberFlags.IsMultipleValue;
+            if (m_flags.HasFlag(MemberFlags.IsMultipleValue))
+            {
+                if (TypeGroups.WholeNumberVectorTypes.Contains(ValueType))
+                    m_flags |= MemberFlags.IsWholeNumber;
+            }
+            else if (TypeGroups.WholeNumberTypes.Contains(ValueType)) 
+                m_flags |= MemberFlags.IsWholeNumber;
         }
 
         public abstract object Get();
@@ -48,11 +88,9 @@ namespace cookie.Cheats
         public object GetSerialized()
         {
             var value = Get();
-
-            if (TypeGroups.MultiValueTypes.Contains(ValueType))
-                return null;
-            
-            return value;
+            return TypeGroups.MultiValueTypes.Contains(ValueType) ? 
+                new MultipleValueTypeProxy(value) : 
+                value;
         }
         
         public abstract void Set(object value);

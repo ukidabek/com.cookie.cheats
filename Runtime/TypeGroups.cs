@@ -67,20 +67,7 @@ namespace cookie.Cheats
             typeof(Quaternion),
             typeof(Color),
             typeof(Color32),
-            typeof(Rect),
-            typeof(Bounds),
-            typeof(BoundsInt),
-            typeof(RectInt),
             typeof(Matrix4x4),
-            typeof(Plane),
-            typeof(Ray),
-            typeof(Ray2D),
-            typeof(LayerMask),
-            typeof(AnimationCurve),
-            typeof(Gradient),
-            typeof(Keyframe),
-            typeof(Resolution),
-            typeof(ShadowResolution),
         };
     }
 }

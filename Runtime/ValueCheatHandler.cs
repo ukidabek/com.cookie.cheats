@@ -7,7 +7,7 @@ using UnityEngine.Events;
 
 namespace cookie.Cheats.UI
 {
-    public abstract class ValueCheatHandler<T> : CheatHandler
+    public abstract class ValueCheatHandler<ValueType> : CheatHandler
     {
         private static readonly Type ValueCheatType = typeof(ValueCheat<>);
         protected static readonly BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy;
@@ -21,7 +21,7 @@ namespace cookie.Cheats.UI
 
         protected ICheat m_cheat = null;
 
-        protected abstract UnityEvent<T> OnValueChanged { get; }
+        protected abstract UnityEvent<ValueType> OnValueChanged { get; }
 
         public override bool CanHandle(ICheat cheat)
         {
@@ -49,7 +49,7 @@ namespace cookie.Cheats.UI
 
         private void OnEnable() => UpdateDisplay();
 
-        protected abstract void UpdateValue(T value);
+        protected abstract void UpdateValue(ValueType value);
 
         protected Type GetValueType(ICheat cheat)
         {
