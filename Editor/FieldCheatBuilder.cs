@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using cookie.Cheats.Server;
 using UnityEditor;
+using UnityEngine;
 
 namespace cookie.Cheats
 {
@@ -21,7 +22,7 @@ namespace cookie.Cheats
             public event Action<CheatPayload> Update;
             
             private MemberFlags m_flags = MemberFlags.None;
-            private readonly MemberFlags m_mask = MemberFlags.IsNumeric | MemberFlags.IsWholeNumber | MemberFlags.IsEnum;
+            private readonly MemberFlags m_mask = MemberFlags.IsNumeric | MemberFlags.IsWholeNumber | MemberFlags.IsEnum | MemberFlags.IsMultipleValue;
             private readonly MemberFlags m_maskedFlags;
             
             private Array m_enumValues = null;
@@ -32,6 +33,10 @@ namespace cookie.Cheats
             private float m_floatValue = 0;
             private bool m_boolValue = false;
             
+            private int m_valuesCount = 0;
+            private float[] m_floatValues = null;
+            private int[] m_intValues = null;
+
             public EditorFieldCheat(ValueCheatData data)
             {
                 ID = data.ID;
@@ -44,6 +49,15 @@ namespace cookie.Cheats
                 {
                     m_enumValues = Enum.GetValues(ValueType);
                     m_enumValuesNames = Enum.GetNames(ValueType);
+                }
+
+                if (m_flags.HasFlag(MemberFlags.IsMultipleValue))
+                {
+                    m_valuesCount = TypeGroups.ValuesCountDictionary[ValueType];
+                    if (m_flags.HasFlag(MemberFlags.IsWholeNumber))
+                        m_intValues = new int[m_valuesCount];
+                    else
+                        m_floatValues = new float[m_valuesCount];
                 }
 
                 m_maskedFlags = m_flags & m_mask;
@@ -66,6 +80,20 @@ namespace cookie.Cheats
                     case MemberFlags.IsEnum:
                         m_index = EditorGUILayout.Popup(name, m_index, m_enumValuesNames);
                         break;
+                    case MemberFlags.IsMultipleValue | MemberFlags.IsWholeNumber:
+                        GUILayout.BeginHorizontal();
+                        GUILayout.Label(name);
+                        for (var i = 0; i < m_valuesCount; i++) 
+                            m_intValues[i] = EditorGUILayout.IntSlider(m_intValues[i], (int)attribute.Min, (int)attribute.Max);
+                        GUILayout.EndHorizontal();
+                        break;
+                    case MemberFlags.IsMultipleValue:
+                        GUILayout.BeginHorizontal();
+                        GUILayout.Label(name);
+                        for (var i = 0; i < m_valuesCount; i++) 
+                            m_floatValues[i] = EditorGUILayout.Slider(m_floatValues[i], attribute.Min, attribute.Max);
+                        GUILayout.EndHorizontal();
+                        break;
                     default:
                         m_boolValue = EditorGUILayout.Toggle(name, m_boolValue);
                         break;
@@ -83,7 +111,7 @@ namespace cookie.Cheats
                         }
                     }));
             }
-
+            
             public void SetValue(object value)
             {
                 switch (m_maskedFlags)
@@ -96,6 +124,14 @@ namespace cookie.Cheats
                         break;
                     case MemberFlags.IsEnum:
                         m_index = Array.IndexOf(m_enumValues, value);
+                        break;
+                    case MemberFlags.IsMultipleValue | MemberFlags.IsWholeNumber:
+                    case MemberFlags.IsMultipleValue:
+                        var proxy = (MultipleValueTypeProxy)value;
+                        if (m_flags.HasFlag(MemberFlags.IsWholeNumber))
+                            m_intValues = proxy.Values.OfType<int>().ToArray();
+                        else
+                            m_floatValues = proxy.Values.OfType<float>().ToArray();
                         break;
                     default:
                         m_boolValue = (bool)value;

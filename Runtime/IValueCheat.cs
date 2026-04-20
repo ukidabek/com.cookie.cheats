@@ -4,5 +4,6 @@ namespace cookie.Cheats
     {
         bool IsDirty { get; }
         object GetSerialized();
+        void MartAsDirty();
     }
 }

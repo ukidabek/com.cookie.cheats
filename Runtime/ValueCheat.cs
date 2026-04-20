@@ -12,28 +12,31 @@ namespace cookie.Cheats
         {
             var type = value.GetType();
             
-            var valuesCount = TypeGroups.AxisCountDictionary[type];
+            var valuesCount = TypeGroups.ValuesCountDictionary[type];
             Values = new object[valuesCount];
 
             var m_getterMethodInfo = type.GetMethod("get_Item");
             var parameters = new object[] { 0 };
-            for (var i = 0; i < valuesCount; i++) 
+            for (var i = 0; i < valuesCount; i++)
+            {
+                parameters[0] = i;
                 Values[i] = m_getterMethodInfo.Invoke(value, parameters);
+            }
         }
 
         public object Parse(Type type)
         {
             var instance = Activator.CreateInstance(type);
-            var valuesCount = TypeGroups.AxisCountDictionary[type];
+            var valuesCount = TypeGroups.ValuesCountDictionary[type];
             var m_setterMethodInfo = type.GetMethod("set_Item");
-            var parameters = new object[] { 0 , 0};
+            var parameters = new object[] { 0, 0 };
             for (var i = 0; i < valuesCount; i++)
             {
                 parameters[0] = i;
                 parameters[1] = Values[i];
                 m_setterMethodInfo.Invoke(instance, parameters);
             }
-            
+
             return instance;
         }
     }
@@ -92,7 +95,9 @@ namespace cookie.Cheats
                 new MultipleValueTypeProxy(value) : 
                 value;
         }
-        
+
+        public void MartAsDirty() => m_lastValue = null;
+
         public abstract void Set(object value);
 
         public override CheatData ToDataTransferObject()

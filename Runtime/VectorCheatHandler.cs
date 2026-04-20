@@ -63,7 +63,7 @@ namespace cookie.Cheats.UI
         {
             base.Initialize(cheat);
             m_vectorType = GetValueType(cheat);
-            m_axisCount = TypeGroups.AxisCountDictionary[m_vectorType];
+            m_axisCount = TypeGroups.ValuesCountDictionary[m_vectorType];
             m_isWholeNumber = TypeGroups.WholeNumberVectorTypes.Contains(m_vectorType);
             
             var cheatAttribute = cheat.Attributes[0];
@@ -84,14 +84,14 @@ namespace cookie.Cheats.UI
                 var value = validAxis ? m_getterMethodInfo.Invoke(valute, parameters) : 0f;
                 m_axisHandlers[i] = new AxisHandler(pair.Item1, pair.Item2, fieldType, value, m_minValue, m_maxValue);
                 m_axisHandlers[i].SetActive(validAxis);
-                m_axisHandlers[i].OnValueChanged += XXX;
+                m_axisHandlers[i].OnValueChanged += CreateInstance;
             }
         }
 
-        private void XXX()
+        private void CreateInstance()
         {
             var instance = Activator.CreateInstance(m_vectorType);
-            var valuesCount = TypeGroups.AxisCountDictionary[m_vectorType];
+            var valuesCount = TypeGroups.ValuesCountDictionary[m_vectorType];
             var parameters = new object[2];
             
             for (var i = 0; i < valuesCount; i++)

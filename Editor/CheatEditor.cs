@@ -114,7 +114,10 @@ namespace cookie.Cheats
                     instance.Update += SendPayload;
                     m_editorCheats.Add(instance.ID, instance);
                 }
-            
+                
+                message = new Message(CheatServer.ReadyToReceiveData, null);
+                CheatServer.SendMessage(m_tcpClient.Client, message);
+
                 await Awaitable.MainThreadAsync();
                 m_currentState = State.Cheats;
                 Repaint();
@@ -190,6 +193,7 @@ namespace cookie.Cheats
             }
 
             await Awaitable.MainThreadAsync();
+            
             return list;
         }
     }

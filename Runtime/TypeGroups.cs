@@ -6,7 +6,7 @@ namespace cookie.Cheats
 {
     public static class TypeGroups
     {
-        public static readonly IReadOnlyDictionary<Type, int> AxisCountDictionary = new Dictionary<Type, int>(new KeyValuePair<Type, int>[]
+        public static readonly IReadOnlyDictionary<Type, int> ValuesCountDictionary = new Dictionary<Type, int>(new KeyValuePair<Type, int>[]
         {
             new KeyValuePair<Type, int>(typeof(Vector2), 2),
             new KeyValuePair<Type, int>(typeof(Vector2Int), 2),

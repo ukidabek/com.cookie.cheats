@@ -12,12 +12,26 @@ using UnityEngine;
 
 namespace cookie.Cheats.Server
 {
+    public class Connection
+    {
+        public readonly Socket Socket;
+        public readonly ConcurrentQueue<byte[]> MessageQueue = null;
+        public bool ReadyToReceiveData = false;
+
+        public Connection(Socket socket, ConcurrentQueue<byte[]> messageQueue)
+        {
+            Socket = socket;
+            MessageQueue = messageQueue;
+        }
+    }
+    
     public class CheatServer : MonoBehaviour
     {
         public const int DiscoverMessage = 0;
         public const int GetCheatsMessage = 1;
         public const int SetPayload = 2;
         public const int UpdateCheat = 3;
+        public const int ReadyToReceiveData = 4;
         
         [SerializeField] private int m_discoverPort = 2137;
         [SerializeField] private int m_listenPort = 2138;
@@ -30,7 +44,7 @@ namespace cookie.Cheats.Server
 
         private Dictionary<Type, ICheatHandler> m_cheatChandlerDictionary;
         private Dictionary<int, MessageHandler> m_messageHandlerDictionary;
-        private Dictionary<Socket, ConcurrentQueue<byte[]>> m_messageQueueDictionary = new  Dictionary<Socket, ConcurrentQueue<byte[]>>();
+        private Dictionary<Socket, Connection> m_messageQueueDictionary = new  Dictionary<Socket, Connection>();
         public IEnumerable<ICheat> Cheats => CheatDatabase.Instance.ChetDictionary.Values;
 
         private ItemProcessor<int, ICheat> m_itemProcessor = null;
@@ -69,6 +83,7 @@ namespace cookie.Cheats.Server
             m_itemProcessor = new ItemProcessor<int, ICheat>(CheatDatabase.Instance.ChetDictionary, 
                 cheat =>
                 {
+                    if (!m_messageQueueDictionary.Any()) return false;
                     if (cheat is not IValueCheat { IsDirty: true } valueCheat) return false;
                     
                     var message = new Message(UpdateCheat, new[]
@@ -79,7 +94,10 @@ namespace cookie.Cheats.Server
                     
                     var data = SerializeMessage(message);
                     foreach (var concurrentQueue in m_messageQueueDictionary.Values)
-                        concurrentQueue.Enqueue(data);
+                    {
+                        if (!concurrentQueue.ReadyToReceiveData) continue;
+                        concurrentQueue.MessageQueue.Enqueue(data);
+                    }
 
                     return false;
                 },
@@ -96,13 +114,13 @@ namespace cookie.Cheats.Server
                 try
                 {
                     var socket = await m_listen.AcceptAsync();
-                    var messageQueue = new ConcurrentQueue<byte[]>();
                     await Awaitable.MainThreadAsync();
-                    m_messageQueueDictionary.Add(socket, messageQueue);
+                    var connection = new Connection(socket, new ConcurrentQueue<byte[]>());
+                    m_messageQueueDictionary.Add(socket, connection);
                     await Awaitable.BackgroundThreadAsync();
 #pragma warning disable CS4014
-                    Task.Run(() => MessageHandling(socket, messageQueue));
-                    Task.Run(() => ResponseHandling(socket, messageQueue));
+                    Task.Run(() => MessageHandling(connection));
+                    Task.Run(() => ResponseHandling(connection));
 #pragma warning restore CS4014
                     await Task.Yield();
                 }
@@ -119,7 +137,7 @@ namespace cookie.Cheats.Server
             }
         }
 
-        private async Task ResponseHandling(Socket socket, ConcurrentQueue<byte[]> queue)
+        private async Task ResponseHandling(Connection connection)
         {
             await Awaitable.BackgroundThreadAsync();
        
@@ -127,9 +145,11 @@ namespace cookie.Cheats.Server
             {
                 try
                 {
+                    var socket = connection.Socket;
                     if (!socket.Connected) break;
+                    // if (!connection.ReadyToReceiveData) continue;
 
-                    if (queue.TryDequeue(out var message))
+                    if (connection.MessageQueue.TryDequeue(out var message))
                         socket.Send(message);
                     else
                         await Task.Yield();
@@ -169,7 +189,7 @@ namespace cookie.Cheats.Server
             return lenght;
         }
 
-        private async Task MessageHandling(Socket socket, ConcurrentQueue<byte[]> queue)
+        private async Task MessageHandling(Connection connection)
         {
             await Awaitable.BackgroundThreadAsync();
             var data = new byte[4096];
@@ -178,11 +198,18 @@ namespace cookie.Cheats.Server
             {
                 try
                 {
-                    if (0 == ReceiveMessage<Message>(socket, out var message, data))
+                    var socket = connection.Socket;
+                    if (ReceiveMessage<Message>(socket, out var message, data) == 0)
                     {
                         await Awaitable.MainThreadAsync();
                         m_messageQueueDictionary.Remove(socket);
                         break;
+                    }
+                    
+                    if (message.ID == ReadyToReceiveData)
+                    {
+                        connection.ReadyToReceiveData = true;
+                        continue;
                     }
                     
                     if (!m_messageHandlerDictionary.TryGetValue(message.ID, out var handler)) continue;
@@ -191,7 +218,7 @@ namespace cookie.Cheats.Server
                     
                     if (response == null) continue;
                     
-                    queue.Enqueue(SerializeMessage(response));
+                    connection.MessageQueue.Enqueue(SerializeMessage(response));
                 }
                 catch (Exception e) when (e is ObjectDisposedException or SocketException or IOException)
                 {
@@ -243,6 +270,16 @@ namespace cookie.Cheats.Server
                         
                         data = Encoding.UTF8.GetBytes($"{m_listenAddress}:{m_listenPort}");
                         m_broadcast.SendTo(data, source);
+                        //
+                        // await Awaitable.MainThreadAsync();
+                        //
+                        // foreach (var cheat in Cheats)
+                        // {
+                        //     if (cheat is not IValueCheat valueCheat) continue;
+                        //     valueCheat.MartAsDirty();
+                        // }
+                        //
+                        // await Awaitable.BackgroundThreadAsync();
                     }
                     else
                         await Task.Yield();
