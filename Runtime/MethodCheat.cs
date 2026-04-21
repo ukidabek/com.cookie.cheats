@@ -4,21 +4,18 @@ using System.Reflection;
 namespace cookie.Cheats
 {
     [Serializable]
-    public class EnumCheat
+    public class MethodCheat : Cheat
     {
+        private readonly MethodInfo m_methodInfo = null;
         
-    }
-    
-    [Serializable]
-    public class MethodCheat : Cheat<MethodInfo>
-    {
         public MethodCheat(int id, object target, MethodInfo memberInfo) : base(id, target, memberInfo)
         {
+            m_methodInfo = memberInfo;
         }
 
         public void Invoke(object[] parameters)
         {
-            MemberInfo.Invoke(Target, parameters);
+            m_methodInfo.Invoke(Target, parameters);
         }
 
         public override CheatData ToDataTransferObject()

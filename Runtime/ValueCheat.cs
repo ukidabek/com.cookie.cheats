@@ -3,47 +3,7 @@ using System.Reflection;
 
 namespace cookie.Cheats
 {
-    [Serializable]
-    public class MultipleValueTypeProxy : IProxy
-    {
-        private readonly string AssemblyQualifiedName;
-        public readonly object[] Values = null;
-
-        public MultipleValueTypeProxy(object value)
-        {
-            var type = value.GetType();
-            AssemblyQualifiedName = type.AssemblyQualifiedName;
-            var valuesCount = TypeGroups.ValuesCountDictionary[type];
-            Values = new object[valuesCount];
-
-            var m_getterMethodInfo = type.GetMethod("get_Item");
-            var parameters = new object[] { 0 };
-            for (var i = 0; i < valuesCount; i++)
-            {
-                parameters[0] = i;
-                Values[i] = m_getterMethodInfo.Invoke(value, parameters);
-            }
-        }
-
-        public object Parse()
-        {
-            var type = Type.GetType(AssemblyQualifiedName);
-            var instance = Activator.CreateInstance(type);
-            var valuesCount = TypeGroups.ValuesCountDictionary[type];
-            var m_setterMethodInfo = type.GetMethod("set_Item");
-            var parameters = new object[] { 0, 0 };
-            for (var i = 0; i < valuesCount; i++)
-            {
-                parameters[0] = i;
-                parameters[1] = Values[i];
-                m_setterMethodInfo.Invoke(instance, parameters);
-            }
-
-            return instance;
-        }
-    }
-    
-    public abstract class ValueCheat<T> : Cheat<T>, IValueCheat where T : MemberInfo
+    public abstract class ValueCheat : Cheat, IValueCheat
     {
         protected MemberFlags m_flags = MemberFlags.None;
         
@@ -66,8 +26,19 @@ namespace cookie.Cheats
         public bool CanWrite => m_flags.HasFlag(MemberFlags.CanWrite);
         public bool IsEnum => m_flags.HasFlag(MemberFlags.IsEnum);
         public bool IsMultipleValue => m_flags.HasFlag(MemberFlags.IsMultipleValue);
+
+        protected ValueCheat(int id, object target, PropertyInfo propertyInfo)
+            : this(id, target, propertyInfo, propertyInfo.PropertyType, propertyInfo.CanRead, propertyInfo.CanWrite)
+        {
+            
+        }
+
+        protected ValueCheat(int id, object target, FieldInfo fieldInfo)
+            : this(id, target, fieldInfo, fieldInfo.FieldType, canRead: true, canWrite: true)
+        {
+        }
         
-        protected ValueCheat(int id, object target, T memberInfo, Type valueType, bool canRead, bool canWrite) 
+        private ValueCheat(int id, object target, MemberInfo memberInfo, Type valueType, bool canRead, bool canWrite) 
             : base(id, target, memberInfo)
         {
             if (Attributes.Length > 1)
@@ -89,10 +60,20 @@ namespace cookie.Cheats
                 m_flags |= MemberFlags.IsWholeNumber;
         }
 
-        public abstract object Get();
-        
-        public object GetSerialized()
+        public object Get()
         {
+            return MemberInfo switch
+            {
+                FieldInfo fieldInfo => fieldInfo.GetValue(Target),
+                PropertyInfo propertyInfo => !propertyInfo.CanRead ? null : propertyInfo.GetValue(Target),
+                _ => null
+            };
+        }
+        
+        public object ToSerializableObject()
+        {
+            return Get();
+            //--------------
             var value = Get();
             return TypeGroups.MultiValueTypes.Contains(ValueType) ? 
                 new MultipleValueTypeProxy(value) : 
@@ -101,7 +82,19 @@ namespace cookie.Cheats
 
         public void MartAsDirty() => m_lastValue = null;
 
-        public abstract void Set(object value);
+        public void Set(object value)
+        {
+            switch (MemberInfo)
+            {
+                case FieldInfo fieldInfo:
+                    fieldInfo.SetValue(Target, value);
+                    break;
+                case PropertyInfo propertyInfo:
+                    if (!propertyInfo.CanWrite) break;
+                    propertyInfo.SetValue(Target, value);
+                    break;
+            }
+        }
 
         public override CheatData ToDataTransferObject()
         {

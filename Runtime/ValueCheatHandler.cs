@@ -9,7 +9,7 @@ namespace cookie.Cheats.UI
 {
     public abstract class ValueCheatHandler<ValueType> : CheatHandler
     {
-        private static readonly Type ValueCheatType = typeof(ValueCheat<>);
+        private static readonly Type ValueCheatType = typeof(ValueCheat);
         protected static readonly BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy;
 
         protected PropertyInfo IsWholeNumberFieldInfo = null;
@@ -27,8 +27,7 @@ namespace cookie.Cheats.UI
         {
             var type = cheat.GetType();
             type = type.BaseType;
-            if (!type.IsGenericType) return false;
-            return type.GetGenericTypeDefinition() == ValueCheatType;
+            return type.IsAssignableFrom(ValueCheatType);
         }
 
         public override void Initialize(ICheat cheat)
@@ -63,7 +62,7 @@ namespace cookie.Cheats.UI
 
 namespace cookie.Cheats.Server
 {
-    public abstract class ValueCheatHandler<T, T1> : ICheatHandler where T : ValueCheat<T1> where T1 : MemberInfo
+    public abstract class ValueCheatHandler<T> : ICheatHandler where T : ValueCheat
     {
         public Type CheatType => typeof(T);
 

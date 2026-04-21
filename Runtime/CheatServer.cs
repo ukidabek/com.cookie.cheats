@@ -89,7 +89,7 @@ namespace cookie.Cheats.Server
                     var message = new Message(UpdateCheat, new[]
                     {
                         cheat.ID,
-                        valueCheat.GetSerialized(),
+                        valueCheat.ToSerializableObject(),
                     });
                     
                     var data = SerializeMessage(message);

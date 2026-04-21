@@ -3,22 +3,22 @@ using System.Reflection;
 
 namespace cookie.Cheats
 {
-    public abstract class Cheat<T> : ICheat where T : MemberInfo
+    public abstract class Cheat: ICheat
     {
         public int ID { get; }
         
         public readonly object Target;
         public string Name { get; }
         
-        public readonly T MemberInfo = null;
+        public readonly MemberInfo MemberInfo = null;
         
         public CheatAttributeData[] Attributes { get; }
         
-        protected Cheat(int id, object target, T memberInfo)
+        protected Cheat(int id, object target, MemberInfo memberInfo)
         {
             Target = target;
             MemberInfo = memberInfo;
-            Name = memberInfo.Name;
+            Name = MemberInfo.Name;
             ID = id;
             Attributes = memberInfo.GetCustomAttributes<CheatAttribute>()
                 .Select(attribute => new CheatAttributeData(attribute))
