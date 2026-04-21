@@ -97,10 +97,7 @@ namespace cookie.Cheats
                 m_tcpClient ??= new TcpClient();
 
                 await m_tcpClient.ConnectAsync(endPoint.Address, endPoint.Port);
-            
-                var message = new Message(CheatServer.GetCheatsMessage, null);
-                CheatServer.SendMessage(m_tcpClient.Client, message);
-                CheatServer.ReceiveMessage(m_tcpClient.Client, out message, null, 20480);
+                CheatServer.ReceiveMessage(m_tcpClient.Client, out Message message, null, 20480);
 
                 var data = (CheatData[])message.Payload;
 

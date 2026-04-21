@@ -82,14 +82,14 @@ namespace cookie.Cheats
                         break;
                     case MemberFlags.IsMultipleValue | MemberFlags.IsWholeNumber:
                         GUILayout.BeginHorizontal();
-                        GUILayout.Label(name);
+                        GUILayout.Label(name, GUILayout.Width(EditorGUIUtility.labelWidth));
                         for (var i = 0; i < m_valuesCount; i++) 
                             m_intValues[i] = EditorGUILayout.IntSlider(m_intValues[i], (int)attribute.Min, (int)attribute.Max);
                         GUILayout.EndHorizontal();
                         break;
                     case MemberFlags.IsMultipleValue:
                         GUILayout.BeginHorizontal();
-                        GUILayout.Label(name);
+                        GUILayout.Label(name, GUILayout.Width(EditorGUIUtility.labelWidth));
                         for (var i = 0; i < m_valuesCount; i++) 
                             m_floatValues[i] = EditorGUILayout.Slider(m_floatValues[i], attribute.Min, attribute.Max);
                         GUILayout.EndHorizontal();

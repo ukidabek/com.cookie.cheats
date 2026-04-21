@@ -10,7 +10,7 @@ namespace cookie.Cheats.Server
         {
         }
 
-        public override int Id => CheatServer.GetCheatsMessage;
+        public override int Id => CheatServer.xxxx;
         
         public override Message Handle(object payload)
         {

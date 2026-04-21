@@ -28,7 +28,7 @@ namespace cookie.Cheats.Server
     public class CheatServer : MonoBehaviour
     {
         public const int DiscoverMessage = 0;
-        public const int GetCheatsMessage = 1;
+        public const int xxxx = 1;
         public const int SetPayload = 2;
         public const int UpdateCheat = 3;
         public const int ReadyToReceiveData = 4;
@@ -117,11 +117,29 @@ namespace cookie.Cheats.Server
                     await Awaitable.MainThreadAsync();
                     var connection = new Connection(socket, new ConcurrentQueue<byte[]>());
                     m_messageQueueDictionary.Add(socket, connection);
+                   
+                    var cheats = Cheats
+                        .Select(cheat => cheat.ToDataTransferObject())
+                        .ToArray();
+                    var message = new Message(-1, cheats);
+                    SendMessage(socket, message);
                     await Awaitable.BackgroundThreadAsync();
 #pragma warning disable CS4014
                     Task.Run(() => MessageHandling(connection));
                     Task.Run(() => ResponseHandling(connection));
 #pragma warning restore CS4014
+                    
+                    
+                    await Awaitable.MainThreadAsync();
+                    
+                    foreach (var cheat in Cheats)
+                    {
+                        if (cheat is not IValueCheat valueCheat) continue;
+                        valueCheat.MartAsDirty();
+                    }
+                    
+                    await Awaitable.BackgroundThreadAsync();
+                    
                     await Task.Yield();
                 }
                 catch (ObjectDisposedException)
@@ -270,16 +288,6 @@ namespace cookie.Cheats.Server
                         
                         data = Encoding.UTF8.GetBytes($"{m_listenAddress}:{m_listenPort}");
                         m_broadcast.SendTo(data, source);
-                        //
-                        // await Awaitable.MainThreadAsync();
-                        //
-                        // foreach (var cheat in Cheats)
-                        // {
-                        //     if (cheat is not IValueCheat valueCheat) continue;
-                        //     valueCheat.MartAsDirty();
-                        // }
-                        //
-                        // await Awaitable.BackgroundThreadAsync();
                     }
                     else
                         await Task.Yield();
