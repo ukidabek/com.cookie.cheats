@@ -100,16 +100,41 @@ namespace cookie.Cheats
                 }
                 
                 if (EditorGUI.EndChangeCheck())
-                    Update.Invoke(new CheatPayload(ID, new object[]
+                {
+                   
+                    object[] parameters;
+
+                    switch (m_maskedFlags)
                     {
-                        m_maskedFlags switch
-                        {
-                            MemberFlags.IsNumeric | MemberFlags.IsWholeNumber => m_intValue,
-                            MemberFlags.IsNumeric => m_floatValue,
-                            MemberFlags.IsEnum => m_enumValues.GetValue(m_index),
-                            _ => m_boolValue,
-                        }
-                    }));
+                        case MemberFlags.IsNumeric | MemberFlags.IsWholeNumber:
+                            parameters = new object[] { m_intValue };
+                            break;
+                        case MemberFlags.IsNumeric:
+                            parameters = new object[] { m_floatValue };
+                            break;
+                        case MemberFlags.IsEnum:
+                            parameters = new object[] { m_enumValues.GetValue(m_index) };
+                            break;
+                        case MemberFlags.IsMultipleValue :
+                            var instance = Activator.CreateInstance(ValueType);
+                            var valuesCount = TypeGroups.ValuesCountDictionary[ValueType];
+                            var m_setterMethodInfo = ValueType.GetMethod("set_Item");
+                            var _parameters = new object[] { 0, 0 };
+                            for (var i = 0; i < valuesCount; i++)
+                            {
+                                _parameters[0] = i;
+                                var whole = m_flags.HasFlag(MemberFlags.IsWholeNumber);
+                                _parameters[1] = whole ? m_intValues[i] : m_floatValues[i];
+                                m_setterMethodInfo.Invoke(instance, _parameters);
+                            }
+                            parameters = new object[] { new MultipleValueTypeProxy(instance) };
+                            break;
+                        default:
+                            parameters = new object[] { m_boolValue };
+                            break;
+                    }
+                    
+                    Update.Invoke(new CheatPayload(ID, parameters));}
             }
             
             public void SetValue(object value)

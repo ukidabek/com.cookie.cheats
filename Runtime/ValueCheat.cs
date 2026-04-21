@@ -4,14 +4,15 @@ using System.Reflection;
 namespace cookie.Cheats
 {
     [Serializable]
-    public class MultipleValueTypeProxy
+    public class MultipleValueTypeProxy : IProxy
     {
+        private readonly string AssemblyQualifiedName;
         public readonly object[] Values = null;
 
         public MultipleValueTypeProxy(object value)
         {
             var type = value.GetType();
-            
+            AssemblyQualifiedName = type.AssemblyQualifiedName;
             var valuesCount = TypeGroups.ValuesCountDictionary[type];
             Values = new object[valuesCount];
 
@@ -24,8 +25,9 @@ namespace cookie.Cheats
             }
         }
 
-        public object Parse(Type type)
+        public object Parse()
         {
+            var type = Type.GetType(AssemblyQualifiedName);
             var instance = Activator.CreateInstance(type);
             var valuesCount = TypeGroups.ValuesCountDictionary[type];
             var m_setterMethodInfo = type.GetMethod("set_Item");
@@ -63,6 +65,7 @@ namespace cookie.Cheats
         public bool CanRead => m_flags.HasFlag(MemberFlags.CanRead);
         public bool CanWrite => m_flags.HasFlag(MemberFlags.CanWrite);
         public bool IsEnum => m_flags.HasFlag(MemberFlags.IsEnum);
+        public bool IsMultipleValue => m_flags.HasFlag(MemberFlags.IsMultipleValue);
         
         protected ValueCheat(int id, object target, T memberInfo, Type valueType, bool canRead, bool canWrite) 
             : base(id, target, memberInfo)

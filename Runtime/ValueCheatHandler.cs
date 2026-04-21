@@ -70,7 +70,11 @@ namespace cookie.Cheats.Server
         public void Handle(ICheat cheat, CheatPayload payload)
         {
             var fieldCheat = (T)cheat;
-            fieldCheat.Set(payload.Parameters.First());
+            var value = payload.Parameters.First();
+            if (value is IProxy proxy)
+                value = proxy.Parse();
+            fieldCheat.Set(value);
         }
     }
+    
 }
