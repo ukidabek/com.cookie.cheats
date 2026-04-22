@@ -330,7 +330,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 7889858306956953267}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9b0e8c6ec2e24ad69b6e0573483b2010, type: 3}
+  m_Script: {fileID: 11500000, guid: 4b8f8b1184904fe0a68e66796651eb72, type: 3}
   m_Name: 
   m_EditorClassIdentifier: com.cookie.cheats::cookie.Cheats.MethodCheatHandler
   m_cheatButtonPrefab: {fileID: 1318033079945148760}
