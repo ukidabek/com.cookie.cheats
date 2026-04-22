@@ -129,7 +129,6 @@ namespace cookie.Cheats.Server
                     Task.Run(() => ResponseHandling(connection));
 #pragma warning restore CS4014
                     
-                    
                     await Awaitable.MainThreadAsync();
                     
                     foreach (var cheat in Cheats)

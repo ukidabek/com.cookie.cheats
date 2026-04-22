@@ -13,17 +13,17 @@ namespace cookie.Cheats
         
         public ICheat Build(object target, MemberInfo memberInfo)
         {
-            switch (memberInfo)
+            return memberInfo switch
             {
-                case FieldInfo fieldInfo:
-                    return new ValueCheat(m_nextCheatId++, target, fieldInfo);
-                case PropertyInfo propertyInfo:
-                    return new ValueCheat(m_nextCheatId++, target, propertyInfo);
-                case MethodInfo methodInfo:
-                    return new MethodCheat(m_nextCheatId++, target, methodInfo);
-            }
-            
-            return null;
+                FieldInfo fieldInfo => TypeGroups.MultiValueTypes.Contains(fieldInfo.FieldType)
+                    ? new MultipleValueCheat(m_nextCheatId++, target, fieldInfo)
+                    : new ValueCheat(m_nextCheatId++, target, fieldInfo),
+                PropertyInfo propertyInfo => TypeGroups.MultiValueTypes.Contains(propertyInfo.PropertyType)
+                    ? new MultipleValueCheat(m_nextCheatId++, target, propertyInfo)
+                    : new ValueCheat(m_nextCheatId++, target, propertyInfo),
+                MethodInfo methodInfo => new MethodCheat(m_nextCheatId++, target, methodInfo),
+                _ => null
+            };
         }
     }
 }

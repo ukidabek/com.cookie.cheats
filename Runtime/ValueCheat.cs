@@ -70,15 +70,7 @@ namespace cookie.Cheats
             };
         }
         
-        public object ToSerializableObject()
-        {
-            return Get();
-            //--------------
-            var value = Get();
-            return TypeGroups.MultiValueTypes.Contains(ValueType) ? 
-                new MultipleValueTypeProxy(value) : 
-                value;
-        }
+        public virtual object ToSerializableObject() => Get();
 
         public void MartAsDirty() => m_lastValue = null;
 
