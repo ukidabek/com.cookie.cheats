@@ -10,9 +10,10 @@ namespace cookie.Cheats.Server
         }
         
         public override int Id => CheatServer.SetPayload;
+        
         protected override Message Handle(CheatPayload payload)
         {
-            m_cheatServer.NewMethod(payload);
+            m_cheatServer.InvokeCheat(payload);
             return null;
         }
     }

@@ -12,19 +12,6 @@ using UnityEngine;
 
 namespace cookie.Cheats.Server
 {
-    public class Connection
-    {
-        public readonly Socket Socket;
-        public readonly ConcurrentQueue<byte[]> MessageQueue = null;
-        public bool ReadyToReceiveData = false;
-
-        public Connection(Socket socket, ConcurrentQueue<byte[]> messageQueue)
-        {
-            Socket = socket;
-            MessageQueue = messageQueue;
-        }
-    }
-    
     public class CheatServer : MonoBehaviour
     {
         public const int DiscoverMessage = 0;
@@ -250,7 +237,7 @@ namespace cookie.Cheats.Server
             }
         }
 
-        public void NewMethod(CheatPayload payload)
+        public void InvokeCheat(CheatPayload payload)
         {
             var cheat = CheatDatabase.Instance.ChetDictionary[payload.ID];
             var type = cheat.GetType();
