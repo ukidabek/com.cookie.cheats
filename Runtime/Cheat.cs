@@ -8,6 +8,7 @@ namespace cookie.Cheats
         public int ID { get; }
         
         public readonly object Target;
+        
         public string Name { get; }
         
         public readonly MemberInfo MemberInfo = null;

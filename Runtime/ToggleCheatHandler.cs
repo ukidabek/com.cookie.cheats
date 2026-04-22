@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
@@ -7,27 +6,14 @@ namespace cookie.Cheats.UI
 {
     public class ToggleCheatHandler : ValueCheatHandler<bool>
     {
-        private readonly Type BoolType = typeof(bool);
-        
         [SerializeField] private Toggle m_toggle = null;
 
         protected override UnityEvent<bool> OnValueChanged => m_toggle.onValueChanged;
 
-        public override bool CanHandle(ICheat cheat)
-        {
-            if (!base.CanHandle(cheat)) return false;
-            var type = cheat.GetType();
-            var valueTypeFieldInfo = type.GetProperty("ValueType", bindingFlags);
-            type = (Type)valueTypeFieldInfo.GetValue(cheat);
-            return type == BoolType;
-        }
-
         public override void UpdateDisplay()
         {
-            if (GetMethodInfo == null) return;
-            m_toggle.isOn = (bool)GetMethodInfo.Invoke(m_cheat, null);
+            if (m_cheat == null) return;
+            m_toggle.isOn = (bool)m_cheat.Get();
         }
-
-        protected override void UpdateValue(bool value) => SetMethodInfo.Invoke(m_cheat, new object[] { value });
     }
 }

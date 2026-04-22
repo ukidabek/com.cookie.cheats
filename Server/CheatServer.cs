@@ -42,7 +42,7 @@ namespace cookie.Cheats.Server
         
         private IPAddress m_listenAddress = null;
 
-        private Dictionary<Type, ICheatHandler> m_cheatChandlerDictionary;
+        private Dictionary<Type, IServerCheatHandler> m_cheatChandlerDictionary;
         private Dictionary<int, MessageHandler> m_messageHandlerDictionary;
         private Dictionary<Socket, Connection> m_messageQueueDictionary = new  Dictionary<Socket, Connection>();
         public IEnumerable<ICheat> Cheats => CheatDatabase.Instance.ChetDictionary.Values;
@@ -56,10 +56,10 @@ namespace cookie.Cheats.Server
                 .Where(type => type.IsClass && !type.IsAbstract)
                 .ToArray();
 
-            var cheatHandlerType = typeof(ICheatHandler);
+            var cheatHandlerType = typeof(IServerCheatHandler);
             m_cheatChandlerDictionary = types
                 .Where(type => cheatHandlerType.IsAssignableFrom(type))
-                .Select(type => (ICheatHandler)Activator.CreateInstance(type))
+                .Select(type => (IServerCheatHandler)Activator.CreateInstance(type))
                 .ToDictionary(handler => handler.CheatType);
 
             var messageHandlerType = typeof(MessageHandler);

@@ -3,7 +3,7 @@ using System.Reflection;
 
 namespace cookie.Cheats
 {
-    public abstract class ValueCheat : Cheat, IValueCheat
+    public class ValueCheat : Cheat, IValueCheat
     {
         protected MemberFlags m_flags = MemberFlags.None;
         
@@ -20,6 +20,7 @@ namespace cookie.Cheats
         }
 
         public Type ValueType { get; }
+        
         public bool IsNumeric => m_flags.HasFlag(MemberFlags.IsNumeric);
         public bool IsWholeNumber => m_flags.HasFlag(MemberFlags.IsWholeNumber);
         public bool CanRead => m_flags.HasFlag(MemberFlags.CanRead);
@@ -27,13 +28,12 @@ namespace cookie.Cheats
         public bool IsEnum => m_flags.HasFlag(MemberFlags.IsEnum);
         public bool IsMultipleValue => m_flags.HasFlag(MemberFlags.IsMultipleValue);
 
-        protected ValueCheat(int id, object target, PropertyInfo propertyInfo)
+        public ValueCheat(int id, object target, PropertyInfo propertyInfo)
             : this(id, target, propertyInfo, propertyInfo.PropertyType, propertyInfo.CanRead, propertyInfo.CanWrite)
         {
-            
         }
 
-        protected ValueCheat(int id, object target, FieldInfo fieldInfo)
+        public ValueCheat(int id, object target, FieldInfo fieldInfo)
             : this(id, target, fieldInfo, fieldInfo.FieldType, canRead: true, canWrite: true)
         {
         }
@@ -84,6 +84,7 @@ namespace cookie.Cheats
 
         public void Set(object value)
         {
+            value = Convert.ChangeType(value, ValueType);
             switch (MemberInfo)
             {
                 case FieldInfo fieldInfo:

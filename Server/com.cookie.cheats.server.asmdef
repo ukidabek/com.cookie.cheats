@@ -1,13 +1,10 @@
 {
-    "name": "com.cookie.cheats.Editor",
+    "name": "com.cookie.cheats.server",
     "rootNamespace": "",
     "references": [
-        "GUID:b880afc8aa02e45af86da6a49a4d3cf5",
-        "GUID:db0ae5c73d72a483288ff08736c887f3"
+        "GUID:b880afc8aa02e45af86da6a49a4d3cf5"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
