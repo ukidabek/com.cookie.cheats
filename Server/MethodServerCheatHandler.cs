@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine.Scripting;
 
 namespace cookie.Cheats.Server
@@ -6,7 +7,10 @@ namespace cookie.Cheats.Server
     [Preserve]
     public class MethodServerCheatHandler : IServerCheatHandler
     {
-        public Type CheatType => typeof(MethodCheat);
+        public IReadOnlyList<Type> CheatType { get; } = new[]
+        {
+            typeof(MethodCheat),
+        };
 
         public void Handle(ICheat cheat, CheatPayload payload)
         {

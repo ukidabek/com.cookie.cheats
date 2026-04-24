@@ -47,7 +47,8 @@ namespace cookie.Cheats.Server
             m_cheatChandlerDictionary = types
                 .Where(type => cheatHandlerType.IsAssignableFrom(type))
                 .Select(type => (IServerCheatHandler)Activator.CreateInstance(type))
-                .ToDictionary(handler => handler.CheatType);
+                .SelectMany(handler => handler.CheatType.Select(type => (type, handler)))
+                .ToDictionary(pair => pair.type, pair => pair.handler);
 
             var messageHandlerType = typeof(MessageHandler);
             var cheatServer = new object[] { this };
