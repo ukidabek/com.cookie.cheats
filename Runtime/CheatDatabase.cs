@@ -21,8 +21,8 @@ namespace cookie.Cheats
 
             public int GetHashCode(MemberInfo memberInfo) => HashCode.Combine(memberInfo.MetadataToken, memberInfo.Module);
         }
-        
-        private const BindingFlags BindingFlag = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
+
+        private const BindingFlags BindingFlag = BindingFlags.Instance |  BindingFlags.Public  | BindingFlags.NonPublic;
         private static readonly Type MonoBehaviorType = typeof(MonoBehaviour);
 
         private static CheatDatabase m_instance = null;
@@ -34,12 +34,14 @@ namespace cookie.Cheats
                 return m_instance;
             }
         }
+
         private readonly MemberInfoEqualityComparer m_comparer = new MemberInfoEqualityComparer();
-        
+
         private readonly Dictionary<Type, IReadOnlyList<MemberInfo>> m_membersDictionary = new Dictionary<Type, IReadOnlyList<MemberInfo>>(30);
 
         private readonly Dictionary<CheatProvider, List<ICheat>> m_providerChetDictionary = new Dictionary<CheatProvider, List<ICheat>>(30);
         public IReadOnlyDictionary<CheatProvider, List<ICheat>> ProviderChetDictionary => m_providerChetDictionary;
+
         private readonly Dictionary<int, ICheat> m_chetDictionary = new Dictionary<int, ICheat>(100);
         public IReadOnlyDictionary<int, ICheat> ChetDictionary => m_chetDictionary;
         
@@ -53,12 +55,13 @@ namespace cookie.Cheats
             var list = new List<ICheat>(30);
             foreach (var monoBehaviour in cheatProvider.Components)
             {
-                if(!m_membersDictionary.TryGetValue(monoBehaviour.GetType(), out var members))
+                var type = monoBehaviour.GetType();
+                if (!m_membersDictionary.TryGetValue(type, out var members))
                 {
                     members = new List<MemberInfo>(ExtractCheats(monoBehaviour));
-                    m_membersDictionary.Add(monoBehaviour.GetType(), members);
+                    m_membersDictionary.Add(type, members);
                 }
-                
+
                 list.AddRange(members.Select(member =>
                 {
                     var cheat = m_cheatFactory.Build(monoBehaviour, member);
@@ -68,33 +71,41 @@ namespace cookie.Cheats
             }
             
             m_providerChetDictionary.Add(cheatProvider, list);
+            
             OnCheatsRegistered?.Invoke(cheatProvider, list);
         }
 
         public void Unregister(CheatProvider cheatProvider)
         {
             var idList = new List<int>();
+            
             if (!m_providerChetDictionary.TryGetValue(cheatProvider, out var list)) return;
+            
             foreach (var member in list)
             {
                 m_chetDictionary.Remove(member.ID);
                 idList.Add(member.ID);
             }
+            
             m_providerChetDictionary.Remove(cheatProvider);
             OnCheatsUnregistered?.Invoke(cheatProvider, idList);
         }
-
+        
         private IEnumerable<MemberInfo> ExtractCheats(MonoBehaviour component)
         {
-            return ExtractMembers(component.GetType()).Distinct(m_comparer);
-
+            return ExtractMembers(component.GetType())
+                .Distinct(m_comparer)
+                .OrderBy(memberInfo => memberInfo is MemberInfo ? int.MaxValue : 0)
+                .ThenBy(memberInfo => memberInfo.GetCustomAttribute<OrderAttribute>()?.Order ?? int.MaxValue);
+            
             IEnumerable<MemberInfo> ExtractMembers(Type type)
             {
                 var extractMembers = type
                     .GetMembers(BindingFlag)
-                    .Where(memberInfo => memberInfo.GetCustomAttributes<CheatAttribute>().Any());
+                    .Where(memberInfo => memberInfo.GetCustomAttributes<CheatAttribute>().Any())
+                    .OrderByDescending(memberInfo => memberInfo.MetadataToken & 0x00FFFFFF);
                 
-                return type.BaseType  == MonoBehaviorType ? extractMembers : extractMembers.Concat(ExtractMembers(type.BaseType));
+                return type.BaseType == MonoBehaviorType ? extractMembers : ExtractMembers(type.BaseType).Concat(extractMembers);
             }
         }
     }
