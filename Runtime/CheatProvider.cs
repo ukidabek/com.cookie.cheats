@@ -8,8 +8,8 @@ namespace cookie.Cheats
         [SerializeField] private MonoBehaviour[] m_component;
         public IReadOnlyList<MonoBehaviour> Components => m_component;
         
-        private void Start() => CheatDatabase.Instance.Register(this);
+        private void OnEnable() => CheatDatabase.Instance.Register(this);
 
-        private void OnDestroy() => CheatDatabase.Instance.Unregister(this);
+        private void OnDisable() => CheatDatabase.Instance.Unregister(this);
     }
 }

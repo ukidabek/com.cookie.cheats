@@ -16,9 +16,9 @@ namespace cookie.Cheats.Server
         public ItemProcessor(IReadOnlyDictionary<KeyT, ValueT> dictionary, Func<ValueT, bool> processItem, Func<ValueT, KeyT> getID)
         {
             m_dictionary = dictionary;
-            SyncQueueIfDictionaryGrew();
             m_processItem = processItem;
             m_getID = getID;
+            SyncQueueIfDictionaryGrew();
         }
 
         public void Process()
