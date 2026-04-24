@@ -12,19 +12,6 @@ using UnityEngine;
 
 namespace cookie.Cheats.Server
 {
-    public class Connection
-    {
-        public readonly Socket Socket;
-        public readonly ConcurrentQueue<byte[]> MessageQueue = null;
-        public bool ReadyToReceiveData = false;
-
-        public Connection(Socket socket, ConcurrentQueue<byte[]> messageQueue)
-        {
-            Socket = socket;
-            MessageQueue = messageQueue;
-        }
-    }
-    
     public class CheatServer : MonoBehaviour
     {
         public const int DiscoverMessage = 0;
@@ -42,7 +29,7 @@ namespace cookie.Cheats.Server
         
         private IPAddress m_listenAddress = null;
 
-        private Dictionary<Type, ICheatHandler> m_cheatChandlerDictionary;
+        private Dictionary<Type, IServerCheatHandler> m_cheatChandlerDictionary;
         private Dictionary<int, MessageHandler> m_messageHandlerDictionary;
         private Dictionary<Socket, Connection> m_messageQueueDictionary = new  Dictionary<Socket, Connection>();
         public IEnumerable<ICheat> Cheats => CheatDatabase.Instance.ChetDictionary.Values;
@@ -56,11 +43,12 @@ namespace cookie.Cheats.Server
                 .Where(type => type.IsClass && !type.IsAbstract)
                 .ToArray();
 
-            var cheatHandlerType = typeof(ICheatHandler);
+            var cheatHandlerType = typeof(IServerCheatHandler);
             m_cheatChandlerDictionary = types
                 .Where(type => cheatHandlerType.IsAssignableFrom(type))
-                .Select(type => (ICheatHandler)Activator.CreateInstance(type))
-                .ToDictionary(handler => handler.CheatType);
+                .Select(type => (IServerCheatHandler)Activator.CreateInstance(type))
+                .SelectMany(handler => handler.CheatType.Select(type => (type, handler)))
+                .ToDictionary(pair => pair.type, pair => pair.handler);
 
             var messageHandlerType = typeof(MessageHandler);
             var cheatServer = new object[] { this };
@@ -89,7 +77,7 @@ namespace cookie.Cheats.Server
                     var message = new Message(UpdateCheat, new[]
                     {
                         cheat.ID,
-                        valueCheat.GetSerialized(),
+                        valueCheat.ToSerializableObject(),
                     });
                     
                     var data = SerializeMessage(message);
@@ -128,7 +116,6 @@ namespace cookie.Cheats.Server
                     Task.Run(() => MessageHandling(connection));
                     Task.Run(() => ResponseHandling(connection));
 #pragma warning restore CS4014
-                    
                     
                     await Awaitable.MainThreadAsync();
                     
@@ -251,7 +238,7 @@ namespace cookie.Cheats.Server
             }
         }
 
-        public void NewMethod(CheatPayload payload)
+        public void InvokeCheat(CheatPayload payload)
         {
             var cheat = CheatDatabase.Instance.ChetDictionary[payload.ID];
             var type = cheat.GetType();

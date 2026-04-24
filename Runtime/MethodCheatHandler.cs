@@ -1,21 +1,5 @@
-using System;
+using System.Reflection;
 using UnityEngine;
-using UnityEngine.Scripting;
-
-namespace cookie.Cheats.Server
-{
-    [Preserve]
-    public class MethodCheatHandler : ICheatHandler
-    {
-        public Type CheatType => typeof(MethodCheat);
-
-        public void Handle(ICheat cheat, CheatPayload payload)
-        {
-            var fieldCheat = (MethodCheat)cheat;
-            fieldCheat.Invoke(payload.Parameters);
-        }
-    }
-}
 
 namespace cookie.Cheats.UI
 {
@@ -33,12 +17,13 @@ namespace cookie.Cheats.UI
         public override void Initialize(ICheat cheat)
         {
             base.Initialize(cheat);
+            var methodInfo = (MethodInfo)m_cheat.MemberInfo;
             foreach (var attribute in m_cheat.Attributes)
             {
                 var button = Instantiate(m_cheatButtonPrefab, m_parent);
                 var name = string.IsNullOrEmpty(attribute.Name) ? m_cheat.Name : attribute.Name;
                 button.gameObject.SetActive(true);
-                button.Initialize(name, m_cheat.Target, m_cheat.MemberInfo, attribute.Parameters);
+                button.Initialize(name, m_cheat.Target, methodInfo, attribute.Parameters);
             }
         }
 

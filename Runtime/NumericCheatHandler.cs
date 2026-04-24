@@ -14,35 +14,30 @@ namespace cookie.Cheats.UI
         
         protected override UnityEvent<float> OnValueChanged => m_slider.onValueChanged;
 
-        public override bool CanHandle(ICheat cheat)
-        {
-            var valueType = GetValueType(cheat);
-            var multiValueTypes = TypeGroups.MultiValueTypes;
-            return base.CanHandle(cheat) && !valueType.IsEnum && !multiValueTypes.Contains(valueType);
-        }
+        public override bool CanHandle(ICheat cheat) => cheat is ValueCheat { IsNumeric: true };
 
         public override void Initialize(ICheat cheat)
         {
             base.Initialize(cheat);
-            m_slider.wholeNumbers = (bool)IsWholeNumberFieldInfo.GetValue(cheat);
+            m_slider.wholeNumbers = m_cheat.IsWholeNumber;
             var attribute = cheat.Attributes.First();
             m_slider.minValue = attribute.Min;
             m_slider.maxValue = attribute.Max;
+            UpdateDisplay();
         }
 
         public override void UpdateDisplay()
         {
-            if (GetMethodInfo == null) return;
-            var value = GetMethodInfo.Invoke(m_cheat, null);
+            var value = m_cheat.Get();
             value = Convert.ChangeType(value, typeof(float));
-            var isWholeNumber = (bool)IsWholeNumberFieldInfo.GetValue(m_cheat);
-            m_inputField.text = isWholeNumber ? value.ToString() : $"{value:F1}";
+            if (value == null) return;
+            m_inputField.text = m_cheat.IsWholeNumber ? value.ToString() : $"{value:F1}";
             m_slider.value = (float)value;
         }
 
         protected override void UpdateValue(float value)
         {
-            SetMethodInfo.Invoke(m_cheat, new object[] { value });
+            m_cheat.Set(value);
             UpdateDisplay();
         }
     }

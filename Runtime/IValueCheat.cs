@@ -1,9 +1,12 @@
+using System;
+
 namespace cookie.Cheats
 {
     public interface IValueCheat
     {
         bool IsDirty { get; }
-        object GetSerialized();
+        public Type ValueType { get; }
+        object ToSerializableObject();
         void MartAsDirty();
     }
 }

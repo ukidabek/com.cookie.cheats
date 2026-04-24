@@ -16,26 +16,21 @@ namespace cookie.Cheats.UI
 
         protected override UnityEvent<object> OnValueChanged => m_onValueChanged;
 
-        public override bool CanHandle(ICheat cheat) => base.CanHandle(cheat) && GetValueType(cheat).IsEnum;
+        public override bool CanHandle(ICheat cheat) => cheat is ValueCheat valueCheat && 
+                                                        valueCheat.ValueType.IsEnum;
 
         public override void Initialize(ICheat cheat)
         {
-            m_enumType = GetValueType(cheat);
-            m_enumValues = Enum.GetValues(m_enumType);
-            
-            m_dropdown.ClearOptions();
-            m_dropdown.AddOptions(Enum.GetNames(m_enumType).ToList());
-            m_dropdown.onValueChanged.AddListener(OnDropdownChanged);
-            
             base.Initialize(cheat);
+            var valueType = m_cheat.ValueType;
+            m_enumValues = Enum.GetValues(valueType);
+            m_dropdown.ClearOptions();
+            m_dropdown.AddOptions(Enum.GetNames(valueType).ToList());
+            m_dropdown.onValueChanged.AddListener(OnDropdownChanged);
+            UpdateDisplay();
         }
 
-        private void OnDropdownChanged(int index)
-        {
-            var selectedValue = m_enumValues.GetValue(index);
-            SetMethodInfo.Invoke(m_cheat, new[] { selectedValue });
-            OnValueChanged.Invoke(selectedValue);
-        }
+        private void OnDropdownChanged(int index) => m_cheat.Set(m_enumValues.GetValue(index));
 
         protected override void UpdateValue(object value)
         {
@@ -47,7 +42,7 @@ namespace cookie.Cheats.UI
         public override void UpdateDisplay()
         {
             if (m_cheat == null) return;
-            UpdateValue(GetMethodInfo.Invoke(m_cheat, null));
+            UpdateValue(m_cheat.Get());
         }
     }
 }

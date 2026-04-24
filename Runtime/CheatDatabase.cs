@@ -26,7 +26,7 @@ namespace cookie.Cheats
         private static readonly Type MonoBehaviorType = typeof(MonoBehaviour);
 
         private static CheatDatabase m_instance = null;
-        internal static CheatDatabase Instance
+        public static CheatDatabase Instance
         {
             get
             {
