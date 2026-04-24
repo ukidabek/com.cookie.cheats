@@ -8,8 +8,9 @@ namespace cookie.Cheats.UI
     public class CheatMenu : MonoBehaviour
     {
         [FormerlySerializedAs("m_cheatHandlers")] 
-        [SerializeField] private CheatHandler[] m_cheatHandlersPrefabs;
-        [SerializeField] private Transform m_parent;
+        [SerializeField] private CheatHandler[] m_cheatHandlersPrefabs = null;
+        [SerializeField] private Separator m_separatorPrefab = null;
+        [SerializeField] private Transform m_parent = null;
 
         private Queue<CheatHandler> m_cheatHandlers = new Queue<CheatHandler>(20);
 
@@ -34,13 +35,19 @@ namespace cookie.Cheats.UI
         private void AddCheatUI(CheatProvider provider, List<ICheat> cheats)
         {
             var list = new List<GameObject>(10);
+            if (m_separatorPrefab != null)
+            {
+                var instance = Instantiate(m_separatorPrefab, m_parent);
+                instance.Text = provider.gameObject.name;
+                list.Add(instance.gameObject);
+            }
+            
             foreach (var cheat in cheats)
             {
                 var handler = m_cheatHandlersPrefabs.FirstOrDefault(handler => handler.CanHandle(cheat));
                 if (handler == null) continue;
                 var instance = Instantiate(handler, m_parent);
                 instance.Initialize(cheat);
-                // instance.transform.SetAsLastSibling();
                 m_cheatHandlers.Enqueue(instance);
                 list.Add(instance.gameObject);
             }

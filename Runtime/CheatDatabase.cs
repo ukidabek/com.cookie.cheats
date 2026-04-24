@@ -95,15 +95,13 @@ namespace cookie.Cheats
         {
             return ExtractMembers(component.GetType())
                 .Distinct(m_comparer)
-                .OrderBy(memberInfo => memberInfo is MemberInfo ? int.MaxValue : 0)
-                .ThenBy(memberInfo => memberInfo.GetCustomAttribute<OrderAttribute>()?.Order ?? int.MaxValue);
+                .OrderBy(memberInfo => memberInfo.GetCustomAttribute<OrderAttribute>()?.Order ?? int.MaxValue);
             
             IEnumerable<MemberInfo> ExtractMembers(Type type)
             {
                 var extractMembers = type
                     .GetMembers(BindingFlag)
-                    .Where(memberInfo => memberInfo.GetCustomAttributes<CheatAttribute>().Any())
-                    .OrderByDescending(memberInfo => memberInfo.MetadataToken & 0x00FFFFFF);
+                    .Where(memberInfo => memberInfo.GetCustomAttributes<CheatAttribute>().Any());
                 
                 return type.BaseType == MonoBehaviorType ? extractMembers : ExtractMembers(type.BaseType).Concat(extractMembers);
             }
