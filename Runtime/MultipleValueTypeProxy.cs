@@ -1,13 +1,21 @@
 using System;
+using Newtonsoft.Json;
 
 namespace cookie.Cheats
 {
     [Serializable]
     public class MultipleValueTypeProxy : IProxy
     {
-        private readonly string AssemblyQualifiedName;
-        public readonly object[] Values = null;
+        public string AssemblyQualifiedName = string.Empty;
+        public object[] Values = null;
 
+        [JsonConstructor]
+        public MultipleValueTypeProxy(string assemblyQualifiedName, object[] values)
+        {
+            AssemblyQualifiedName = assemblyQualifiedName;
+            Values = values;
+        }
+        
         public MultipleValueTypeProxy(object value)
         {
             var type = value.GetType();

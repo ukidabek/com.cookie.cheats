@@ -1,17 +1,19 @@
-using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 
 namespace cookie.Cheats.Server
 {
+    using Newtonsoft.Json;
+    using System;
+    
+
     public class CheatServer : MonoBehaviour
     {
         public const int DiscoverMessage = 0;
@@ -19,6 +21,13 @@ namespace cookie.Cheats.Server
         public const int SetPayload = 2;
         public const int UpdateCheat = 3;
         public const int ReadyToReceiveData = 4;
+
+        public static readonly JsonSerializerSettings SerializerSettings = new JsonSerializerSettings
+        {
+            TypeNameHandling = TypeNameHandling.Auto,
+        };
+
+        public static readonly JsonSerializer Serializer = JsonSerializer.Create(SerializerSettings);
         
         [SerializeField] private int m_discoverPort = 2137;
         [SerializeField] private int m_listenPort = 2138;
@@ -74,11 +83,15 @@ namespace cookie.Cheats.Server
                     if (!m_messageQueueDictionary.Any()) return false;
                     if (cheat is not IValueCheat { IsDirty: true } valueCheat) return false;
                     
-                    var message = new Message(UpdateCheat, new[]
+                    var message = new Message()
                     {
-                        cheat.ID,
-                        valueCheat.ToSerializableObject(),
-                    });
+                        ID = cheat.ID,
+                        Payload = new[]
+                        {
+                            cheat.ID,
+                            valueCheat.ToSerializableObject(),
+                        }
+                    };
                     
                     var data = SerializeMessage(message);
                     foreach (var concurrentQueue in m_messageQueueDictionary.Values)
@@ -109,7 +122,11 @@ namespace cookie.Cheats.Server
                     var cheats = Cheats
                         .Select(cheat => cheat.ToDataTransferObject())
                         .ToArray();
-                    var message = new Message(-1, cheats);
+                    var message = new Message()
+                    {
+                        ID = -1,
+                        Payload = cheats
+                    };
                     SendMessage(socket, message);
                     await Awaitable.BackgroundThreadAsync();
 #pragma warning disable CS4014
@@ -152,8 +169,6 @@ namespace cookie.Cheats.Server
                 {
                     var socket = connection.Socket;
                     if (!socket.Connected) break;
-                    // if (!connection.ReadyToReceiveData) continue;
-
                     if (connection.MessageQueue.TryDequeue(out var message))
                         socket.Send(message);
                     else
@@ -166,19 +181,16 @@ namespace cookie.Cheats.Server
             }
         }
 
-        public static byte[] SerializeMessage(object payload)
+        private static byte[] SerializeMessage(object payload)
         {
-            var binaryFormater = new BinaryFormatter();
-            using var memoryStream = new MemoryStream();
-            binaryFormater.Serialize(memoryStream, payload);
-            return memoryStream.ToArray();
+            var json = JsonConvert.SerializeObject(payload, SerializerSettings);
+            return Encoding.UTF8.GetBytes(json);
         }
 
         public static void SendMessage(Socket socket, object payload) => socket.Send(SerializeMessage(payload));
 
         public static int ReceiveMessage<T>(Socket socket, out T output, byte[] buffer = null, int bufferSize = 4096)
         {
-            var binaryFormatter = new BinaryFormatter();
             buffer ??= new byte[bufferSize];
             
             var lenght = socket.Receive(buffer);
@@ -188,11 +200,13 @@ namespace cookie.Cheats.Server
                 return 0;
             }
             
-            using var messageStream = new MemoryStream(buffer,  0, lenght);
-            output = (T)binaryFormatter.Deserialize(messageStream);
+            var json = Encoding.UTF8.GetString(buffer);
+            Debug.Log(json);
+            output  = JsonConvert.DeserializeObject<T>(json, SerializerSettings);
             
             return lenght;
         }
+        
 
         private async Task MessageHandling(Connection connection)
         {

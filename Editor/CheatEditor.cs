@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using cookie.Cheats.Server;
+using Newtonsoft.Json;
 using UnityEditor;
 using UnityEngine;
 
@@ -99,7 +100,9 @@ namespace cookie.Cheats
                 await m_tcpClient.ConnectAsync(endPoint.Address, endPoint.Port);
                 CheatServer.ReceiveMessage(m_tcpClient.Client, out Message message, null, 20480);
 
-                var data = (CheatData[])message.Payload;
+                var s = JsonSerializer.Create(CheatServer.SerializerSettings);
+                Debug.Log(s.GetType().FullName);
+                var data = ((CheatData[])message.Payload);
 
                 foreach (var identifier in data)
                 {
@@ -112,7 +115,11 @@ namespace cookie.Cheats
                     m_editorCheats.Add(instance.ID, instance);
                 }
                 
-                message = new Message(CheatServer.ReadyToReceiveData, null);
+                message = new Message()
+                {
+                    ID = CheatServer.ReadyToReceiveData,
+                    Payload = null,
+                };
                 CheatServer.SendMessage(m_tcpClient.Client, message);
 
                 await Awaitable.MainThreadAsync();
@@ -128,7 +135,7 @@ namespace cookie.Cheats
                    if (message.ID == CheatServer.UpdateCheat)
                    {
                        var cheatDataObject = (object[])message.Payload;
-                       var id = (int)cheatDataObject[0];
+                       var id = (int)Convert.ChangeType(cheatDataObject[0], typeof(int));
                        var value = cheatDataObject[1];
                        if (!m_editorCheats.TryGetValue(id, out var editorCheat)) continue;
                        editorCheat.SetValue(value);
@@ -151,7 +158,11 @@ namespace cookie.Cheats
         {
             if (m_tcpClient == null) return;
             
-            var message = new Message(CheatServer.SetPayload, payload);
+            var message = new Message()
+            {
+                ID = CheatServer.SetPayload,
+                Payload = payload
+            };
             CheatServer.SendMessage(m_tcpClient.Client, message);
         }
 

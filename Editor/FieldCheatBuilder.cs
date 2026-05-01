@@ -73,13 +73,17 @@ namespace cookie.Cheats
 
                 if (!EditorGUI.EndChangeCheck()) return;
 
-                Update.Invoke(new CheatPayload(ID, m_maskedFlags switch
+                Update.Invoke(new CheatPayload()
                 {
-                    MemberFlags.IsNumeric | MemberFlags.IsWholeNumber => new object[] { m_intValue },
-                    MemberFlags.IsNumeric => new object[] { m_floatValue },
-                    MemberFlags.IsEnum => new object[] { m_enumValues.GetValue(m_index) },
-                    _ => new object[] { m_boolValue },
-                }));
+                    ID = ID,
+                    Parameters = m_maskedFlags switch
+                    {
+                        MemberFlags.IsNumeric | MemberFlags.IsWholeNumber => new object[] { m_intValue },
+                        MemberFlags.IsNumeric => new object[] { m_floatValue },
+                        MemberFlags.IsEnum => new[] { m_enumValues.GetValue(m_index) },
+                        _ => new object[] { m_boolValue },
+                    }
+                });
             }
 
             public void SetValue(object value)

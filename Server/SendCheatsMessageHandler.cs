@@ -17,8 +17,12 @@ namespace cookie.Cheats.Server
             var cheats = m_cheatServer.Cheats
                 .Select(cheat => cheat.ToDataTransferObject())
                 .ToArray();
-            
-            return new Message(-1, cheats);
+
+            return new Message()
+            {
+                ID = -1,
+                Payload = cheats
+            };
         }
     }
 }

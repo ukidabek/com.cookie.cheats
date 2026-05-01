@@ -54,7 +54,6 @@ namespace cookie.Cheats
                 EditorGUI.BeginChangeCheck();
                 var attribute = Attributes.First();
                 var name = string.IsNullOrEmpty(attribute.Name) ? Name : attribute.Name;
-
                 switch (m_maskedFlags)
                 {
                     case MemberFlags.IsMultipleValue | MemberFlags.IsWholeNumber:
@@ -87,7 +86,14 @@ namespace cookie.Cheats
                         m_setterMethodInfo.Invoke(instance, _parameters);
                     }
 
-                    Update.Invoke(new CheatPayload(ID, new object[] { new MultipleValueTypeProxy(instance) }));
+                    Update.Invoke(new CheatPayload()
+                    {
+                        ID = ID,
+                        Parameters = new object[]
+                        {
+                            new MultipleValueTypeProxy(instance)
+                        },
+                    });
                 }
             }
 
@@ -95,9 +101,19 @@ namespace cookie.Cheats
             {
                 var proxy = (MultipleValueTypeProxy)value;
                 if (m_flags.HasFlag(MemberFlags.IsWholeNumber))
-                    m_intValues = proxy.Values.OfType<int>().ToArray();
+                {
+                    m_intValues = proxy.Values
+                        .Select(data => Convert.ChangeType(data, typeof(int)))
+                        .OfType<int>()
+                        .ToArray();
+                }
                 else
-                    m_floatValues = proxy.Values.OfType<float>().ToArray();
+                {
+                    m_floatValues = proxy.Values
+                        .Select(data => Convert.ChangeType(data, typeof(float)))
+                        .OfType<float>()
+                        .ToArray();
+                }
             }
         }
 

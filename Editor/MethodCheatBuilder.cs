@@ -24,8 +24,14 @@ namespace cookie.Cheats
                 foreach (var attribute in Attributes)
                 {
                     var name = string.IsNullOrEmpty(attribute.Name) ? Name : attribute.Name;
-                    if (GUILayout.Button(name)) 
-                        Update?.Invoke(new CheatPayload(ID, attribute.Parameters));
+                    if (GUILayout.Button(name))
+                    {
+                        Update?.Invoke(new CheatPayload()
+                        {
+                            ID = ID,
+                            Parameters = attribute.Parameters
+                        });
+                    }
                 }
 
                 EditorGUILayout.EndHorizontal();
