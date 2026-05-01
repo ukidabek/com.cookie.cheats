@@ -9,6 +9,7 @@ namespace cookie.Cheats.UI
         public abstract bool CanHandle(ICheat cheat);
         
         public abstract void Initialize(ICheat cheat);
+        
         public abstract void UpdateDisplay();
     }
     

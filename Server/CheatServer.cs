@@ -15,7 +15,7 @@ namespace cookie.Cheats.Server
     public class CheatServer : MonoBehaviour
     {
         public const int DiscoverMessage = 0;
-        public const int xxxx = 1;
+        public const int SynchronizeCheats = 1;
         public const int SetPayload = 2;
         public const int UpdateCheat = 3;
         public const int ReadyToReceiveData = 4;
@@ -30,7 +30,7 @@ namespace cookie.Cheats.Server
         private IPAddress m_listenAddress = null;
 
         private Dictionary<Type, IServerCheatHandler> m_cheatChandlerDictionary;
-        private Dictionary<int, MessageHandler> m_messageHandlerDictionary;
+        private ConcurrentDictionary<int, MessageHandler> m_messageHandlerDictionary;
         private Dictionary<Socket, Connection> m_messageQueueDictionary = new  Dictionary<Socket, Connection>();
         public IEnumerable<ICheat> Cheats => CheatDatabase.Instance.ChetDictionary.Values;
 
@@ -52,10 +52,10 @@ namespace cookie.Cheats.Server
 
             var messageHandlerType = typeof(MessageHandler);
             var cheatServer = new object[] { this };
-            m_messageHandlerDictionary = types
+            m_messageHandlerDictionary = new ConcurrentDictionary<int, MessageHandler>(types
                 .Where(type => messageHandlerType.IsAssignableFrom(type))
                 .Select(type => (MessageHandler)Activator.CreateInstance(type, cheatServer))
-                .ToDictionary(handler => handler.Id);
+                .ToDictionary(handler => handler.Id));
 
             m_broadcast = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             m_broadcast.Bind(new IPEndPoint(IPAddress.Any, m_discoverPort));

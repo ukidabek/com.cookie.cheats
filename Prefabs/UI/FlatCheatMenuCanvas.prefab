@@ -211,6 +211,7 @@ MonoBehaviour:
   - {fileID: 8453435226886715082, guid: c668f89d68797494aa51af0e98dfc78a, type: 3}
   - {fileID: 4324920347186556441, guid: 82311747aef954179b814f06f6d7824b, type: 3}
   - {fileID: 6363132705357167461, guid: 443d5083a2098460fa97bda050ad694b, type: 3}
+  m_separatorPrefab: {fileID: 5105526751064343133, guid: 0400768fad6da4f918bdc82acbfdbda5, type: 3}
   m_parent: {fileID: 7192127292297413990}
 --- !u!1 &2665543083397694880
 GameObject:

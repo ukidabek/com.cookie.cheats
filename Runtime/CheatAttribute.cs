@@ -2,8 +2,7 @@ using System;
 
 namespace cookie.Cheats
 {
-    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Method | AttributeTargets.Class,
-        AllowMultiple = true)]
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Method | AttributeTargets.Class, AllowMultiple = true)]
     public class CheatAttribute : Attribute
     {
         public string Name = string.Empty;
