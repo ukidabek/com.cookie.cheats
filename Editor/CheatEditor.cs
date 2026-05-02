@@ -27,7 +27,7 @@ namespace cookie.Cheats
         private Dictionary<int, IEditorCheat> m_editorCheats = new  Dictionary<int, IEditorCheat>(30);
         private State m_currentState = State.ConnectionList;
         private TcpClient m_tcpClient = null;
-
+        private Network.Connection m_connection = null;
         public int DiscoverPort { get; set; } = 2137;
      
         [MenuItem("Tools/Cheat remote")]
@@ -60,6 +60,29 @@ namespace cookie.Cheats
 
         private void OnGUI()
         {
+            if (m_connection != null)
+            {
+                if (m_connection.ReceiveQueue.TryDequeue(out var message))
+                {
+                    switch (message.ID)
+                    {
+                        case CheatServer.SynchronizeCheats:
+                            var payload = message.GetPayload();
+                
+                            if(payload is not CheatData cheatData) break;
+                            
+                            var type = Type.GetType(cheatData.AssemblyQualifiedName);
+                
+                            if (!m_fieldCheats.TryGetValue(type, out var builder)) break;
+                
+                            var instance = builder.Build(cheatData);
+                            instance.Update += SendPayload;
+                            m_editorCheats.Add(instance.ID, instance);
+                            break;
+                    }
+                }
+            }
+            
             if (!m_states.Any()) return;
             m_states[m_currentState].OnGUI();
         }
@@ -88,6 +111,13 @@ namespace cookie.Cheats
         
         private async void ConnectToServer(IPEndPoint endPoint)
         {
+            var socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            await socket.ConnectAsync(endPoint);
+            m_connection = new Network.Connection(socket);
+            
+            m_currentState = State.Cheats;
+            Repaint();
+            return;
             try
             {
                 m_currentState = State.Connecting;
@@ -96,6 +126,8 @@ namespace cookie.Cheats
                 m_tcpClient?.Close();
                 m_tcpClient ??= new TcpClient();
 
+                
+                
                 await m_tcpClient.ConnectAsync(endPoint.Address, endPoint.Port);
                 CheatServer.ReceiveMessage(m_tcpClient.Client, out Message message, null, 20480);
 
@@ -161,7 +193,7 @@ namespace cookie.Cheats
             var list = new List<IPEndPoint>(10);
             using var udpClient = new UdpClient();
             udpClient.EnableBroadcast = true;
-            var data = BitConverter.GetBytes(CheatServer.DiscoverMessage);
+            var data = Encoding.UTF8.GetBytes(cookie.Cheats.Network.Server.DiscoverMessage);
             var start = DateTime.UtcNow;
             
             await udpClient.SendAsync(data, data.Length, new IPEndPoint(IPAddress.Broadcast, DiscoverPort));
@@ -175,8 +207,8 @@ namespace cookie.Cheats
                         var result = await udpClient.ReceiveAsync();
                         var message = Encoding.UTF8.GetString(result.Buffer, 0, result.Buffer.Length);
                         var ipAndPort = message.Split(':');
-                        var ip = IPAddress.Parse(ipAndPort[0]);
-                        var ipEndPoint = new IPEndPoint(ip, int.Parse(ipAndPort[1]));
+                        var ip = IPAddress.Parse(ipAndPort[1]);
+                        var ipEndPoint = new IPEndPoint(ip, int.Parse(ipAndPort[2]));
                         list.Add(ipEndPoint);
                     }
                     else

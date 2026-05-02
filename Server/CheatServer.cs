@@ -36,6 +36,8 @@ namespace cookie.Cheats.Server
 
         private ItemProcessor<int, ICheat> m_itemProcessor = null;
 
+        private Network.Server m_server = null;
+        
         private void Start()
         {
             var types = AppDomain.CurrentDomain.GetAssemblies()
@@ -57,16 +59,16 @@ namespace cookie.Cheats.Server
                 .Select(type => (MessageHandler)Activator.CreateInstance(type, cheatServer))
                 .ToDictionary(handler => handler.Id));
 
-            m_broadcast = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            m_broadcast.Bind(new IPEndPoint(IPAddress.Any, m_discoverPort));
-            _ = BroadcastListeningTask();
+            // m_broadcast = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            // m_broadcast.Bind(new IPEndPoint(IPAddress.Any, m_discoverPort));
+            // // _ = BroadcastListeningTask();
 
             m_listenAddress = Dns.GetHostAddresses(Dns.GetHostName()).First(ip => ip.AddressFamily == AddressFamily.InterNetwork);
 
-            m_listen = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            m_listen.Bind(new IPEndPoint(m_listenAddress, m_listenPort));
-            m_listen.Listen(m_connectionCount);
-            _ = ConnectionAccept();
+            // m_listen = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            // m_listen.Bind(new IPEndPoint(m_listenAddress, m_listenPort));
+            // m_listen.Listen(m_connectionCount);
+            // _ = ConnectionAccept();
 
             m_itemProcessor = new ItemProcessor<int, ICheat>(CheatDatabase.Instance.ChetDictionary, 
                 cheat =>
@@ -90,6 +92,9 @@ namespace cookie.Cheats.Server
                     return false;
                 },
                 cheat => cheat.ID);
+
+            m_server = new Network.Server();
+            m_server.Start();
         }
 
         private void Update() => m_itemProcessor.Process();
@@ -152,7 +157,6 @@ namespace cookie.Cheats.Server
                 {
                     var socket = connection.Socket;
                     if (!socket.Connected) break;
-                    // if (!connection.ReadyToReceiveData) continue;
 
                     if (connection.MessageQueue.TryDequeue(out var message))
                         socket.Send(message);

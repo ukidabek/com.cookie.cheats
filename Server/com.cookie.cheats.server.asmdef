@@ -2,7 +2,8 @@
     "name": "com.cookie.cheats.server",
     "rootNamespace": "",
     "references": [
-        "GUID:b880afc8aa02e45af86da6a49a4d3cf5"
+        "GUID:b880afc8aa02e45af86da6a49a4d3cf5",
+        "GUID:0f001c93b24b44f32ab6d2bcd826334e"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
