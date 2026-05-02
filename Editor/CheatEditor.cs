@@ -117,66 +117,6 @@ namespace cookie.Cheats
             
             m_currentState = State.Cheats;
             Repaint();
-            return;
-            try
-            {
-                m_currentState = State.Connecting;
-                await Awaitable.BackgroundThreadAsync();
-            
-                m_tcpClient?.Close();
-                m_tcpClient ??= new TcpClient();
-
-                
-                
-                await m_tcpClient.ConnectAsync(endPoint.Address, endPoint.Port);
-                CheatServer.ReceiveMessage(m_tcpClient.Client, out Message message, null, 20480);
-
-                var data = (CheatData[])message.Payload;
-
-                foreach (var identifier in data)
-                {
-                    var type = Type.GetType(identifier.AssemblyQualifiedName);
-                
-                    if (!m_fieldCheats.TryGetValue(type, out var builder)) continue;
-                
-                    var instance = builder.Build(identifier);
-                    instance.Update += SendPayload;
-                    m_editorCheats.Add(instance.ID, instance);
-                }
-                
-                message = new Message(CheatServer.ReadyToReceiveData, null);
-                CheatServer.SendMessage(m_tcpClient.Client, message);
-
-                await Awaitable.MainThreadAsync();
-                m_currentState = State.Cheats;
-                Repaint();
-                await Awaitable.BackgroundThreadAsync();
-                
-                while (true)
-                {
-                   var received = CheatServer.ReceiveMessage(m_tcpClient.Client, out message);
-                   if (received == 0) return;
-
-                   if (message.ID == CheatServer.UpdateCheat)
-                   {
-                       var cheatDataObject = (object[])message.Payload;
-                       var id = (int)cheatDataObject[0];
-                       var value = cheatDataObject[1];
-                       if (!m_editorCheats.TryGetValue(id, out var editorCheat)) continue;
-                       editorCheat.SetValue(value);
-                       await Awaitable.MainThreadAsync();
-                       Repaint();
-                       await Awaitable.BackgroundThreadAsync();
-                   }
-                   
-                   await Task.Yield();
-                }
-            }
-            catch (Exception e)
-            {
-                await Awaitable.MainThreadAsync();
-                Debug.LogException(e);
-            }
         }
 
         private void SendPayload(CheatPayload payload)

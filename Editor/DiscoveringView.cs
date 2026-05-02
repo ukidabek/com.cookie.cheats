@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -16,14 +14,13 @@ namespace cookie.Cheats
             "Searching for servers..",
             "Searching for servers..."
         };
-        
-       private int m_index = 0;
-        
+
+        private int m_index = 0;
+
         public DiscoveringView(CheatEditor cheatEditor) : base(cheatEditor)
         {
             m_style = EditorStyles.helpBox;
             m_style.alignment = TextAnchor.MiddleCenter;
-            
         }
 
         public override void OnGUI()
