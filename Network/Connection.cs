@@ -4,7 +4,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using UnityEngine;
+using Newtonsoft.Json;
 
 namespace cookie.Cheats.Network
 {
@@ -16,15 +16,19 @@ namespace cookie.Cheats.Network
        
         private ConcurrentDictionary<Socket, Connection> Connections = new ConcurrentDictionary<Socket, Connection>();
 
-        private CancellationTokenSource m_token = new CancellationTokenSource();
+        private readonly CancellationTokenSource m_token = new CancellationTokenSource();
         
-        private byte[] m_receiveBuffer = new byte[1024];
-        private byte[] m_sendBuffer = new byte[1024];
+        private readonly byte[] m_receiveBuffer = new byte[1024];
+        private readonly byte[] m_sendBuffer = new byte[1024];
+        
+        private JsonSerializerSettings settings = new JsonSerializerSettings
+        {
+            TypeNameHandling = TypeNameHandling.Auto // ✅ Preserves real type
+        };
         
         public Connection(Socket socket, ConcurrentDictionary<Socket, Connection> connections) : this(socket)
         {
             Connections = connections;
-            
         }
 
         public Connection(Socket socket)
@@ -43,7 +47,7 @@ namespace cookie.Cheats.Network
                 {
                     var lenght = Socket.Receive(m_receiveBuffer);
                     var json = Encoding.UTF8.GetString(m_receiveBuffer, 0, lenght);
-                    var message = JsonUtility.FromJson<Message>(json);
+                    var message = JsonConvert.DeserializeObject<Message>(json, settings);
                     ReceiveQueue.Enqueue(message);
                 }
                 catch (ObjectDisposedException)
@@ -60,14 +64,19 @@ namespace cookie.Cheats.Network
             {
                 try
                 {
-                    if (SendQueue.Count == 0) continue;
+                    if (SendQueue.Count == 0)
+                    {
+                        Thread.Sleep(10);
+                        continue;
+                    }
+                    
                     if (!SendQueue.TryDequeue(out var message)) continue;
-                    var json = JsonUtility.ToJson(message);
+                    var json = JsonConvert.SerializeObject(message, settings);
                     var lenght = json.Length;
                     Encoding.UTF8.GetBytes(json, 0, lenght, m_sendBuffer, 0);
                     Socket.Send(m_sendBuffer, 0, lenght, SocketFlags.None);
                 }
-                catch (ObjectDisposedException)
+                catch (Exception e)
                 {
                     CancelAndRemove();
                     break;

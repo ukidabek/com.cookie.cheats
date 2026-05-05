@@ -14,21 +14,21 @@ namespace cookie.Cheats.Network
     {
         public const string DiscoverMessage = "DISCOVER_SERVER";
         
-        private string m_name = nameof(Server);
-        private int m_discoverPort = 2137;
-        private int m_listenPort = 2138;
-        private int m_connectionCount = 1;
-        private CancellationTokenSource m_token = new CancellationTokenSource();
+        private readonly string m_name = nameof(Server);
+        private readonly int m_discoverPort = 2137;
+        private readonly int m_listenPort = 2138;
+        private readonly int m_connectionCount = 1;
+        private readonly CancellationTokenSource m_token = new CancellationTokenSource();
 
         private Socket m_broadcast = null;
         private Socket m_listen = null;
         
-        private IPAddress m_listenAddress = null;
+        private readonly IPAddress m_listenAddress = null;
         private ConcurrentQueue<Message> ReceiveQueue = new ConcurrentQueue<Message>();
         private ConcurrentDictionary<Socket, Connection> Connections = new ConcurrentDictionary<Socket, Connection>();
         
-        private object m_lock = new object();
-        private List<Message> m_helloMessagesList = new List<Message>(10);
+        private readonly object m_lock = new object();
+        private readonly List<Message> m_helloMessagesList = new List<Message>(10);
         
         public Server(string name, int discoverPort, int listenPort, int connectionCount) : this()
         {
@@ -60,7 +60,6 @@ namespace cookie.Cheats.Network
             }
         }
         
-        
         private void AcceptConnection(CancellationToken token)
         {
             m_listen = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
@@ -75,15 +74,19 @@ namespace cookie.Cheats.Network
                     var connection = new Connection(socket);
                     Connections.TryAdd(socket, connection);
                     lock (m_lock)
-                    {                            
-                        var connectionSendQueue = connection.SendQueue;
-                        foreach (var message in m_helloMessagesList) 
-                            connectionSendQueue.Enqueue(message);
+                    {
+                        var x = m_helloMessagesList.ToArray();
+                        foreach (var message in x) 
+                            connection.SendQueue.Enqueue(message);
                     }
                 }
                 catch (ObjectDisposedException)
                 {
-                    break;
+                }
+                catch (Exception ex) // ✅ Catch everything else
+                {
+                    Console.WriteLine($"[Server] AcceptConnection error: {ex}");
+                    // Don't break — keep the loop alive unless you decide otherwise
                 }
             }
         }

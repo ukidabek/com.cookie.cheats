@@ -24,9 +24,9 @@ namespace cookie.Cheats
         private readonly List<IPEndPoint> m_discoveredServer = new List<IPEndPoint>(10);
         private Dictionary<State, View> m_states = null;
         private Dictionary<Type, IEditorCheatBuilder> m_fieldCheats = null;
-        private Dictionary<int, IEditorCheat> m_editorCheats = new  Dictionary<int, IEditorCheat>(30);
+        private readonly Dictionary<int, IEditorCheat> m_editorCheats = new  Dictionary<int, IEditorCheat>(30);
         private State m_currentState = State.ConnectionList;
-        private TcpClient m_tcpClient = null;
+
         private Network.Connection m_connection = null;
         public int DiscoverPort { get; set; } = 2137;
      
@@ -66,9 +66,9 @@ namespace cookie.Cheats
                 {
                     switch (message.ID)
                     {
-                        case CheatServer.SynchronizeCheats:
-                            var payload = message.GetPayload();
-                
+                        case MessagesIDs.CreateCheatInstance:
+                            var payload = message.Payload;
+                            
                             if(payload is not CheatData cheatData) break;
                             
                             var type = Type.GetType(cheatData.AssemblyQualifiedName);
@@ -76,7 +76,6 @@ namespace cookie.Cheats
                             if (!m_fieldCheats.TryGetValue(type, out var builder)) break;
                 
                             var instance = builder.Build(cheatData);
-                            instance.Update += SendPayload;
                             m_editorCheats.Add(instance.ID, instance);
                             break;
                     }
@@ -89,11 +88,6 @@ namespace cookie.Cheats
 
         private void OnDestroy()
         {
-            if (m_tcpClient == null) return;
-            
-            m_tcpClient.Client.Shutdown(SocketShutdown.Both);
-            m_tcpClient.Close();
-            m_tcpClient.Dispose();
         }
 
         private async void DiscoverServers()
@@ -118,14 +112,7 @@ namespace cookie.Cheats
             m_currentState = State.Cheats;
             Repaint();
         }
-
-        private void SendPayload(CheatPayload payload)
-        {
-            if (m_tcpClient == null) return;
-            
-            var message = new Message(CheatServer.SetPayload, payload);
-            CheatServer.SendMessage(m_tcpClient.Client, message);
-        }
+        
 
         private async Task<List<IPEndPoint>> SendDiscoverServerBroadcast()
         {
