@@ -56,34 +56,45 @@ namespace cookie.Cheats
                     new KeyValuePair<State, View>(State.Connecting, new ConnectingView(this)),
                     new KeyValuePair<State, View>(State.Cheats, new CheatsView(this, m_editorCheats.Values)),
                 });
+
+            _ =  HandleMessages();
         }
 
         private void OnGUI()
         {
-            if (m_connection != null)
+            HandleMessages();
+            
+            if (!m_states.Any()) return;
+            m_states[m_currentState].OnGUI();
+        }
+
+        private async Task HandleMessages()
+        {
+            while (true)
             {
-                if (m_connection.ReceiveQueue.TryDequeue(out var message))
+                if (m_connection != null && m_connection.ReceiveQueue.TryDequeue(out var message))
                 {
                     switch (message.ID)
                     {
                         case MessagesIDs.CreateCheatInstance:
                             var payload = message.Payload;
-                            
-                            if(payload is not CheatData cheatData) break;
-                            
+
+                            if (payload is not CheatData cheatData) break;
+
                             var type = Type.GetType(cheatData.AssemblyQualifiedName);
-                
+
+                            Debug.Log($"{type.Name} received!");
+                            
                             if (!m_fieldCheats.TryGetValue(type, out var builder)) break;
-                
+
                             var instance = builder.Build(cheatData);
                             m_editorCheats.Add(instance.ID, instance);
                             break;
                     }
                 }
+
+                await Task.Yield();
             }
-            
-            if (!m_states.Any()) return;
-            m_states[m_currentState].OnGUI();
         }
 
         private void OnDestroy()

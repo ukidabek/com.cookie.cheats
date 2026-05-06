@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Concurrent;
+using System.IO;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace cookie.Cheats.Network
 {
@@ -18,10 +20,10 @@ namespace cookie.Cheats.Network
 
         private readonly CancellationTokenSource m_token = new CancellationTokenSource();
         
-        private readonly byte[] m_receiveBuffer = new byte[1024];
-        private readonly byte[] m_sendBuffer = new byte[1024];
+        private readonly byte[] m_receiveBuffer = new byte[16_384];
+        private readonly byte[] m_sendBuffer = new byte[16_384];
         
-        private JsonSerializerSettings settings = new JsonSerializerSettings
+        private readonly JsonSerializerSettings m_settings = new JsonSerializerSettings
         {
             TypeNameHandling = TypeNameHandling.Auto // ✅ Preserves real type
         };
@@ -47,8 +49,19 @@ namespace cookie.Cheats.Network
                 {
                     var lenght = Socket.Receive(m_receiveBuffer);
                     var json = Encoding.UTF8.GetString(m_receiveBuffer, 0, lenght);
-                    var message = JsonConvert.DeserializeObject<Message>(json, settings);
-                    ReceiveQueue.Enqueue(message);
+                    
+                    using var stringReader = new StringReader(json);
+                    using var reader = new JsonTextReader(stringReader)
+                    {
+                        SupportMultipleContent = true,
+                    };
+                    
+                    while (reader.Read())
+                    {
+                        var jobject = JObject.Load(reader);
+                        var message = JsonConvert.DeserializeObject<Message>(jobject.ToString(), m_settings);
+                        ReceiveQueue.Enqueue(message);
+                    }
                 }
                 catch (ObjectDisposedException)
                 {
@@ -69,12 +82,12 @@ namespace cookie.Cheats.Network
                         Thread.Sleep(10);
                         continue;
                     }
-                    
+
                     if (!SendQueue.TryDequeue(out var message)) continue;
-                    var json = JsonConvert.SerializeObject(message, settings);
+                    var json = JsonConvert.SerializeObject(message, m_settings);
                     var lenght = json.Length;
                     Encoding.UTF8.GetBytes(json, 0, lenght, m_sendBuffer, 0);
-                    Socket.Send(m_sendBuffer, 0, lenght, SocketFlags.None);
+                    lenght = Socket.Send(m_sendBuffer, 0, lenght, SocketFlags.None);
                 }
                 catch (Exception e)
                 {

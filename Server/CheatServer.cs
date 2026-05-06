@@ -38,10 +38,7 @@ namespace cookie.Cheats.Server
                 .ToDictionary(pair => pair.type, pair => pair.handler);
             
             m_itemProcessor = new ItemProcessor<int, ICheat>(CheatDatabase.Instance.ChetDictionary, 
-                cheat =>
-                {
-                    return false;
-                },
+                cheat => false,
                 cheat => cheat.ID);
 
             Server = new Network.Server();
