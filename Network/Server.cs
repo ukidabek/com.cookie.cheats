@@ -59,6 +59,13 @@ namespace cookie.Cheats.Network
                 m_helloMessagesList.AddRange(messages);
             }
         }
+
+        public void Send(Message message)
+        {
+            var connections = Connections.Values;
+            foreach (var connection in connections)
+                connection.SendQueue.Enqueue(message);
+        }
         
         private void AcceptConnection(CancellationToken token)
         {
@@ -75,18 +82,16 @@ namespace cookie.Cheats.Network
                     Connections.TryAdd(socket, connection);
                     lock (m_lock)
                     {
-                        var x = m_helloMessagesList.ToArray();
-                        foreach (var message in x) 
+                        foreach (var message in m_helloMessagesList) 
                             connection.SendQueue.Enqueue(message);
                     }
                 }
                 catch (ObjectDisposedException)
                 {
                 }
-                catch (Exception ex) // ✅ Catch everything else
+                catch (Exception ex)
                 {
                     Console.WriteLine($"[Server] AcceptConnection error: {ex}");
-                    // Don't break — keep the loop alive unless you decide otherwise
                 }
             }
         }

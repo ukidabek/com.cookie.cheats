@@ -6,11 +6,6 @@ using UnityEngine;
 
 namespace cookie.Cheats.Server
 {
-    public static class MessagesIDs
-    {
-        public const int CreateCheatInstance = 0;
-    }
-
     public class CheatServer : MonoBehaviour
     {
         [SerializeField] private int m_discoverPort = 2137;
@@ -38,7 +33,21 @@ namespace cookie.Cheats.Server
                 .ToDictionary(pair => pair.type, pair => pair.handler);
             
             m_itemProcessor = new ItemProcessor<int, ICheat>(CheatDatabase.Instance.ChetDictionary, 
-                cheat => false,
+                cheat =>
+                {
+                    if (cheat is not IValueCheat valueCheat) return false;
+                    if (!valueCheat.IsDirty) return false;
+
+                    var message = new Message(MessagesIDs.UpdateCheat, new []
+                    {
+                        cheat.ID,
+                        valueCheat.ToSerializableObject()
+                    });
+                    
+                    Server.Send(message);
+
+                    return false;
+                },
                 cheat => cheat.ID);
 
             Server = new Network.Server();

@@ -49,13 +49,13 @@ namespace cookie.Cheats.Network
                 {
                     var lenght = Socket.Receive(m_receiveBuffer);
                     var json = Encoding.UTF8.GetString(m_receiveBuffer, 0, lenght);
-                    
+
                     using var stringReader = new StringReader(json);
                     using var reader = new JsonTextReader(stringReader)
                     {
                         SupportMultipleContent = true,
                     };
-                    
+
                     while (reader.Read())
                     {
                         var jobject = JObject.Load(reader);
@@ -67,6 +67,10 @@ namespace cookie.Cheats.Network
                 {
                     CancelAndRemove();
                     break;
+                }
+                catch (Exception)
+                {
+                    continue;
                 }
             }
         }

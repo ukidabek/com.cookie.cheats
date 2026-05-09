@@ -74,21 +74,24 @@ namespace cookie.Cheats
             {
                 if (m_connection != null && m_connection.ReceiveQueue.TryDequeue(out var message))
                 {
+                    var payload = message.Payload;
                     switch (message.ID)
                     {
                         case MessagesIDs.CreateCheatInstance:
-                            var payload = message.Payload;
-
                             if (payload is not CheatData cheatData) break;
 
                             var type = Type.GetType(cheatData.AssemblyQualifiedName);
-
-                            Debug.Log($"{type.Name} received!");
                             
                             if (!m_fieldCheats.TryGetValue(type, out var builder)) break;
 
                             var instance = builder.Build(cheatData);
                             m_editorCheats.Add(instance.ID, instance);
+                            break;
+                        case MessagesIDs.UpdateCheat:
+                            if (payload is not object[] data) break;
+                            var id = Convert.ToInt32(data[0]);
+                            if (!m_editorCheats.TryGetValue(id, out var cheat)) break;
+                            cheat.SetValue(data[1]);
                             break;
                     }
                 }

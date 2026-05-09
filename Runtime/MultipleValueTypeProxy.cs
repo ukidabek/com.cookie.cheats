@@ -5,9 +5,13 @@ namespace cookie.Cheats
     [Serializable]
     public class MultipleValueTypeProxy : IProxy
     {
-        private readonly string AssemblyQualifiedName;
-        public readonly object[] Values = null;
+        public string AssemblyQualifiedName;
+        public object[] Values = null;
 
+        public MultipleValueTypeProxy()
+        {
+        }
+        
         public MultipleValueTypeProxy(object value)
         {
             var type = value.GetType();
