@@ -93,7 +93,9 @@ namespace cookie.Cheats
                         m_floatValue = (float)Convert.ChangeType(value, typeof(float));;
                         break;
                     case MemberFlags.IsEnum:
-                        m_index = Array.IndexOf(m_enumValues, value);
+                        var intValue = (int)Convert.ChangeType(value, typeof(int));
+                        var enumValue = Enum.ToObject(ValueType, intValue);
+                        m_index = Array.IndexOf(m_enumValues, enumValue);
                         break;
                     default:
                         m_boolValue = (bool)value;

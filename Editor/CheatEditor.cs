@@ -67,7 +67,7 @@ namespace cookie.Cheats
                 if (!m_states.Any()) return;
                 m_states[m_currentState].OnGUI();
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 m_currentState = State.ConnectionList;
             }
