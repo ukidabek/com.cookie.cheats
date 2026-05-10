@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using cookie.Cheats.Server;
 using UnityEditor;
@@ -95,9 +96,18 @@ namespace cookie.Cheats
             {
                 var proxy = (MultipleValueTypeProxy)value;
                 if (m_flags.HasFlag(MemberFlags.IsWholeNumber))
-                    m_intValues = proxy.Values.OfType<int>().ToArray();
+                    m_intValues = ConvertArray<int>(proxy.Values);
                 else
-                    m_floatValues = proxy.Values.OfType<float>().ToArray();
+                    m_floatValues = ConvertArray<float>(proxy.Values);
+                
+                return;
+
+                T[] ConvertArray<T>(object[] data)
+                {
+                    return data.Select(value => Convert.ChangeType(value, typeof(T)))
+                        .OfType<T>()
+                        .ToArray();
+                }
             }
         }
 

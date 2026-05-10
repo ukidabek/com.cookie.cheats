@@ -62,10 +62,15 @@ namespace cookie.Cheats
 
         private void OnGUI()
         {
-            HandleMessages();
-            
-            if (!m_states.Any()) return;
-            m_states[m_currentState].OnGUI();
+            try
+            {
+                if (!m_states.Any()) return;
+                m_states[m_currentState].OnGUI();
+            }
+            catch (Exception e)
+            {
+                m_currentState = State.ConnectionList;
+            }
         }
 
         private async Task HandleMessages()

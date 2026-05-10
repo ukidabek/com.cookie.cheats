@@ -7,6 +7,7 @@ namespace cookie.Cheats
     {
         public string AssemblyQualifiedName;
         public object[] Values = null;
+        public bool IsWholeNumber = false;
 
         public MultipleValueTypeProxy()
         {
@@ -15,6 +16,9 @@ namespace cookie.Cheats
         public MultipleValueTypeProxy(object value)
         {
             var type = value.GetType();
+
+            IsWholeNumber = TypeGroups.WholeNumberVectorTypes.Contains(type);
+            
             AssemblyQualifiedName = type.AssemblyQualifiedName;
             var valuesCount = TypeGroups.ValuesCountDictionary[type];
             Values = new object[valuesCount];
@@ -31,6 +35,7 @@ namespace cookie.Cheats
         public object Parse()
         {
             var type = Type.GetType(AssemblyQualifiedName);
+            var valueType = IsWholeNumber ? typeof(int) : typeof(float);
             var instance = Activator.CreateInstance(type);
             var valuesCount = TypeGroups.ValuesCountDictionary[type];
             var m_setterMethodInfo = type.GetMethod("set_Item");
@@ -38,7 +43,7 @@ namespace cookie.Cheats
             for (var i = 0; i < valuesCount; i++)
             {
                 parameters[0] = i;
-                parameters[1] = Values[i];
+                parameters[1] = Convert.ChangeType(Values[i], valueType);
                 m_setterMethodInfo.Invoke(instance, parameters);
             }
 
