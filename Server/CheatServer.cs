@@ -27,7 +27,7 @@ namespace cookie.Cheats.Server
 
             var cheatHandlerType = typeof(IServerCheatHandler);
             m_cheatChandlerDictionary = types
-                .Where(type => cheatHandlerType.IsAssignableFrom(type))
+                .Where(cheatHandlerType.IsAssignableFrom)
                 .Select(type => (IServerCheatHandler)Activator.CreateInstance(type))
                 .SelectMany(handler => handler.CheatType.Select(type => (type, handler)))
                 .ToDictionary(pair => pair.type, pair => pair.handler);
@@ -50,7 +50,7 @@ namespace cookie.Cheats.Server
                 },
                 cheat => cheat.ID);
 
-            Server = new Network.Server();
+            Server = new Network.Server(name, m_discoverPort, m_listenPort, m_connectionCount);
             var cheats = CheatDatabase.Instance.ChetDictionary.Values
                 .Select(cheat => cheat.ToDataTransferObject())
                 .Select(data => new Message(MessagesIDs.CreateCheatInstance, data));
@@ -62,6 +62,7 @@ namespace cookie.Cheats.Server
 
         private void OnDestroy()
         {
+            Server?.Dispose();
         }
     }
 }

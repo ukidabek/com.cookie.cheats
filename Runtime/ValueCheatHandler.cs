@@ -11,7 +11,7 @@ namespace cookie.Cheats.UI
         [SerializeField] private TMP_Text m_label = null;
 
         protected ValueCheat m_cheat = null;
-        private static readonly Type ValueCheatType = typeof(T);
+        private readonly Type ValueCheatType = typeof(T);
         public Type ValueType => m_cheat.ValueType;
         
         protected abstract UnityEvent<T> OnValueChanged { get; }

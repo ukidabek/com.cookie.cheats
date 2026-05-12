@@ -100,8 +100,8 @@ namespace cookie.Cheats.Network
         {
             var data = new byte[DiscoverMessage.Length];
             EndPoint source = new IPEndPoint(IPAddress.Any, 0);
-            
-            m_broadcast = new  Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+
+            m_broadcast = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             m_broadcast.Bind(new IPEndPoint(IPAddress.Any, m_discoverPort));
             
             while (!token.IsCancellationRequested)
@@ -130,6 +130,10 @@ namespace cookie.Cheats.Network
         
         public override void Dispose()
         {
+            foreach (var connection in Connections.Values) 
+                connection.Dispose();
+            Connections.Clear();
+            
             m_token.Cancel();
             m_broadcast?.Dispose();
             m_listen?.Dispose();

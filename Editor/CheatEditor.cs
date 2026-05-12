@@ -29,6 +29,8 @@ namespace cookie.Cheats
 
         private Network.Connection m_connection = null;
         public int DiscoverPort { get; set; } = 2137;
+        
+        public bool m_isActive = true;
      
         [MenuItem("Tools/Cheat remote")]
         public static void ShowWindow()
@@ -75,7 +77,7 @@ namespace cookie.Cheats
 
         private async Task HandleMessages()
         {
-            while (true)
+            while (m_isActive)
             {
                 if (m_connection != null && m_connection.ReceiveQueue.TryDequeue(out var message))
                 {
@@ -107,6 +109,8 @@ namespace cookie.Cheats
 
         private void OnDestroy()
         {
+            m_isActive = false;
+            m_connection?.Dispose();
         }
 
         private async void DiscoverServers()
