@@ -36,7 +36,7 @@ namespace cookie.Cheats.Server
                 cheat =>
                 {
                     if (cheat is not IValueCheat valueCheat) return false;
-                    if (!valueCheat.IsDirty) return false;
+                    // if (!valueCheat.IsDirty) return false;
 
                     var message = new Message(MessagesIDs.UpdateCheat, new []
                     {
@@ -58,11 +58,28 @@ namespace cookie.Cheats.Server
             Server.Start();
         }
 
-        private void Update() => m_itemProcessor.Process();
-
-        private void OnDestroy()
+        private void Update()
         {
-            Server?.Dispose();
+            var queue = Server.ReceiveQueue;
+            if (queue.Any() && queue.TryDequeue(out var message))
+            {
+                switch (message.ID)
+                {
+                    case MessagesIDs.UpdateCheat:
+                        if (message.Payload is not CheatPayload cheatPayload || 
+                            !m_itemProcessor.TryGetValue(cheatPayload.ID, out var cheat) || 
+                            !m_cheatChandlerDictionary.TryGetValue(cheat.GetType(), out var cheatHandler))
+                        {
+                            break;
+                        }
+                        
+                        cheatHandler.Handle(cheat, cheatPayload);
+                        break;
+                }
+            }
+            m_itemProcessor.Process();
         }
+
+        private void OnDestroy() => Server?.Dispose();
     }
 }

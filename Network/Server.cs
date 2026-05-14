@@ -24,7 +24,7 @@ namespace cookie.Cheats.Network
         private Socket m_listen = null;
         
         private readonly IPAddress m_listenAddress = null;
-        private ConcurrentQueue<Message> ReceiveQueue = new ConcurrentQueue<Message>();
+        public readonly ConcurrentQueue<Message> ReceiveQueue = new ConcurrentQueue<Message>();
         private ConcurrentDictionary<Socket, Connection> Connections = new ConcurrentDictionary<Socket, Connection>();
         
         private readonly object m_lock = new object();
@@ -49,6 +49,7 @@ namespace cookie.Cheats.Network
         {
             Task.Run(() => BroadcastListening(m_token.Token));
             Task.Run(() => AcceptConnection(m_token.Token));
+            Task.Run(() => ReceiveMessages(m_token.Token));
         }
 
         public void SetHelloMessages(IEnumerable<Message> messages)
@@ -65,6 +66,23 @@ namespace cookie.Cheats.Network
             var connections = Connections.Values;
             foreach (var connection in connections)
                 connection.SendQueue.Enqueue(message);
+        }
+
+        public void ReceiveMessages(CancellationToken token)
+        {
+            var connectionSnapshot = new List<Connection>(10);
+            while (!token.IsCancellationRequested)
+            {
+                connectionSnapshot.Clear();
+                connectionSnapshot.AddRange(Connections.Values);
+                foreach (var connection in connectionSnapshot)
+                {
+                    while (connection.ReceiveQueue.TryDequeue(out var message)) 
+                        ReceiveQueue.Enqueue(message);
+                }
+
+                Task.Delay(250, token).Wait(token);
+            }
         }
         
         private void AcceptConnection(CancellationToken token)

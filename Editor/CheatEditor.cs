@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using cookie.Cheats.Network;
 using cookie.Cheats.Server;
 using UnityEditor;
 using UnityEngine;
@@ -92,6 +93,7 @@ namespace cookie.Cheats
                             if (!m_fieldCheats.TryGetValue(type, out var builder)) break;
 
                             var instance = builder.Build(cheatData);
+                            instance.Update += OnCheatUpdated;
                             m_editorCheats.Add(instance.ID, instance);
                             break;
                         case MessagesIDs.UpdateCheat:
@@ -105,6 +107,12 @@ namespace cookie.Cheats
 
                 await Task.Yield();
             }
+        }
+
+        private void OnCheatUpdated(CheatPayload obj)
+        {
+            var message = new Message(MessagesIDs.UpdateCheat, obj);
+            m_connection.SendQueue.Enqueue(message);
         }
 
         private void OnDestroy()
@@ -130,7 +138,7 @@ namespace cookie.Cheats
         {
             var socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             await socket.ConnectAsync(endPoint);
-            m_connection = new Network.Connection(socket);
+            m_connection = new Connection(socket);
             
             m_currentState = State.Cheats;
             Repaint();
@@ -143,7 +151,7 @@ namespace cookie.Cheats
             var list = new List<IPEndPoint>(10);
             using var udpClient = new UdpClient();
             udpClient.EnableBroadcast = true;
-            var data = Encoding.UTF8.GetBytes(cookie.Cheats.Network.Server.DiscoverMessage);
+            var data = Encoding.UTF8.GetBytes(Network.Server.DiscoverMessage);
             var start = DateTime.UtcNow;
             
             await udpClient.SendAsync(data, data.Length, new IPEndPoint(IPAddress.Broadcast, DiscoverPort));

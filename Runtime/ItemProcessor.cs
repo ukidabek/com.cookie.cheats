@@ -1,9 +1,10 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace cookie.Cheats.Server
 {
-    public class ItemProcessor<KeyT,ValueT>
+    public class ItemProcessor<KeyT,ValueT> : IReadOnlyDictionary<KeyT, ValueT>
     {
         private readonly IReadOnlyDictionary<KeyT, ValueT> m_dictionary;
         private readonly Queue<ValueT> m_queue = new Queue<ValueT>(30);
@@ -54,5 +55,20 @@ namespace cookie.Cheats.Server
 
             m_lastKnownCount = currentCount;
         }
+
+        public IEnumerator<KeyValuePair<KeyT, ValueT>> GetEnumerator() => m_dictionary.GetEnumerator();
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+        public int Count =>m_dictionary.Count;
+        public bool ContainsKey(KeyT key) => m_dictionary.ContainsKey(key);
+
+        public bool TryGetValue(KeyT key, out ValueT value) => m_dictionary.TryGetValue(key, out value);
+
+        public ValueT this[KeyT key] => m_dictionary[key];
+
+        public IEnumerable<KeyT> Keys => m_dictionary.Keys;
+        
+        public IEnumerable<ValueT> Values => m_dictionary.Values;
     }
 }
