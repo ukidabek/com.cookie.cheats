@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using cookie.Cheats.Network;
 using cookie.Cheats.Server;
 using UnityEditor;
 using UnityEngine;
@@ -24,11 +25,13 @@ namespace cookie.Cheats
         private readonly List<IPEndPoint> m_discoveredServer = new List<IPEndPoint>(10);
         private Dictionary<State, View> m_states = null;
         private Dictionary<Type, IEditorCheatBuilder> m_fieldCheats = null;
-        private Dictionary<int, IEditorCheat> m_editorCheats = new  Dictionary<int, IEditorCheat>(30);
+        private readonly Dictionary<int, IEditorCheat> m_editorCheats = new  Dictionary<int, IEditorCheat>(30);
         private State m_currentState = State.ConnectionList;
-        private TcpClient m_tcpClient = null;
 
+        private Network.Connection m_connection = null;
         public int DiscoverPort { get; set; } = 2137;
+        
+        public bool m_isActive = true;
      
         [MenuItem("Tools/Cheat remote")]
         public static void ShowWindow()
@@ -56,21 +59,66 @@ namespace cookie.Cheats
                     new KeyValuePair<State, View>(State.Connecting, new ConnectingView(this)),
                     new KeyValuePair<State, View>(State.Cheats, new CheatsView(this, m_editorCheats.Values)),
                 });
+
+            _ =  HandleMessages();
         }
 
         private void OnGUI()
         {
-            if (!m_states.Any()) return;
-            m_states[m_currentState].OnGUI();
+            try
+            {
+                if (!m_states.Any()) return;
+                m_states[m_currentState].OnGUI();
+            }
+            catch (Exception)
+            {
+                m_currentState = State.ConnectionList;
+            }
+        }
+
+        private async Task HandleMessages()
+        {
+            while (m_isActive)
+            {
+                if (m_connection != null && m_connection.ReceiveQueue.TryDequeue(out var message))
+                {
+                    var payload = message.Payload;
+                    switch (message.ID)
+                    {
+                        case MessagesIDs.CreateCheatInstance:
+                            if (payload is not CheatData cheatData) break;
+
+                            var type = Type.GetType(cheatData.AssemblyQualifiedName);
+                            
+                            if (!m_fieldCheats.TryGetValue(type, out var builder)) break;
+
+                            var instance = builder.Build(cheatData);
+                            instance.Update += OnCheatUpdated;
+                            m_editorCheats.Add(instance.ID, instance);
+                            break;
+                        case MessagesIDs.UpdateCheat:
+                            if (payload is not object[] data) break;
+                            var id = Convert.ToInt32(data[0]);
+                            if (!m_editorCheats.TryGetValue(id, out var cheat)) break;
+                            cheat.SetValue(data[1]);
+                            break;
+                    }
+                }
+
+                await Task.Yield();
+            }
+        }
+
+        private void OnCheatUpdated(CheatPayload obj)
+        {
+            var message = new Message(MessagesIDs.UpdateCheat, obj);
+            m_connection.SendQueue.Enqueue(message);
         }
 
         private void OnDestroy()
         {
-            if (m_tcpClient == null) return;
-            
-            m_tcpClient.Client.Shutdown(SocketShutdown.Both);
-            m_tcpClient.Close();
-            m_tcpClient.Dispose();
+            m_isActive = false;
+            m_connection?.Dispose();
         }
 
         private async void DiscoverServers()
@@ -88,72 +136,14 @@ namespace cookie.Cheats
         
         private async void ConnectToServer(IPEndPoint endPoint)
         {
-            try
-            {
-                m_currentState = State.Connecting;
-                await Awaitable.BackgroundThreadAsync();
+            var socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            await socket.ConnectAsync(endPoint);
+            m_connection = new Connection(socket);
             
-                m_tcpClient?.Close();
-                m_tcpClient ??= new TcpClient();
-
-                await m_tcpClient.ConnectAsync(endPoint.Address, endPoint.Port);
-                CheatServer.ReceiveMessage(m_tcpClient.Client, out Message message, null, 20480);
-
-                var data = (CheatData[])message.Payload;
-
-                foreach (var identifier in data)
-                {
-                    var type = Type.GetType(identifier.AssemblyQualifiedName);
-                
-                    if (!m_fieldCheats.TryGetValue(type, out var builder)) continue;
-                
-                    var instance = builder.Build(identifier);
-                    instance.Update += SendPayload;
-                    m_editorCheats.Add(instance.ID, instance);
-                }
-                
-                message = new Message(CheatServer.ReadyToReceiveData, null);
-                CheatServer.SendMessage(m_tcpClient.Client, message);
-
-                await Awaitable.MainThreadAsync();
-                m_currentState = State.Cheats;
-                Repaint();
-                await Awaitable.BackgroundThreadAsync();
-                
-                while (true)
-                {
-                   var received = CheatServer.ReceiveMessage(m_tcpClient.Client, out message);
-                   if (received == 0) return;
-
-                   if (message.ID == CheatServer.UpdateCheat)
-                   {
-                       var cheatDataObject = (object[])message.Payload;
-                       var id = (int)cheatDataObject[0];
-                       var value = cheatDataObject[1];
-                       if (!m_editorCheats.TryGetValue(id, out var editorCheat)) continue;
-                       editorCheat.SetValue(value);
-                       await Awaitable.MainThreadAsync();
-                       Repaint();
-                       await Awaitable.BackgroundThreadAsync();
-                   }
-                   
-                   await Task.Yield();
-                }
-            }
-            catch (Exception e)
-            {
-                await Awaitable.MainThreadAsync();
-                Debug.LogException(e);
-            }
+            m_currentState = State.Cheats;
+            Repaint();
         }
-
-        private void SendPayload(CheatPayload payload)
-        {
-            if (m_tcpClient == null) return;
-            
-            var message = new Message(CheatServer.SetPayload, payload);
-            CheatServer.SendMessage(m_tcpClient.Client, message);
-        }
+        
 
         private async Task<List<IPEndPoint>> SendDiscoverServerBroadcast()
         {
@@ -161,7 +151,7 @@ namespace cookie.Cheats
             var list = new List<IPEndPoint>(10);
             using var udpClient = new UdpClient();
             udpClient.EnableBroadcast = true;
-            var data = BitConverter.GetBytes(CheatServer.DiscoverMessage);
+            var data = Encoding.UTF8.GetBytes(Network.Server.DiscoverMessage);
             var start = DateTime.UtcNow;
             
             await udpClient.SendAsync(data, data.Length, new IPEndPoint(IPAddress.Broadcast, DiscoverPort));
@@ -175,8 +165,8 @@ namespace cookie.Cheats
                         var result = await udpClient.ReceiveAsync();
                         var message = Encoding.UTF8.GetString(result.Buffer, 0, result.Buffer.Length);
                         var ipAndPort = message.Split(':');
-                        var ip = IPAddress.Parse(ipAndPort[0]);
-                        var ipEndPoint = new IPEndPoint(ip, int.Parse(ipAndPort[1]));
+                        var ip = IPAddress.Parse(ipAndPort[1]);
+                        var ipEndPoint = new IPEndPoint(ip, int.Parse(ipAndPort[2]));
                         list.Add(ipEndPoint);
                     }
                     else

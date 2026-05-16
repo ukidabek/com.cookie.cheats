@@ -14,17 +14,4 @@ namespace cookie.Cheats.Server
             Parameters = parameters;
         }
     }
-
-    [Serializable]
-    public class Message
-    {
-        public readonly int ID;
-        public readonly object Payload;
-        
-        public Message(int id, object payload)
-        {
-            ID = id;
-            Payload = payload;
-        }
-    }
 }

@@ -87,13 +87,15 @@ namespace cookie.Cheats
                 switch (m_maskedFlags)
                 {
                     case MemberFlags.IsNumeric | MemberFlags.IsWholeNumber:
-                        m_intValue = (int)value;
+                        m_intValue = (int)Convert.ChangeType(value, typeof(int));
                         break;
                     case MemberFlags.IsNumeric:
-                        m_floatValue = (float)value;
+                        m_floatValue = (float)Convert.ChangeType(value, typeof(float));;
                         break;
                     case MemberFlags.IsEnum:
-                        m_index = Array.IndexOf(m_enumValues, value);
+                        var intValue = (int)Convert.ChangeType(value, typeof(int));
+                        var enumValue = Enum.ToObject(ValueType, intValue);
+                        m_index = Array.IndexOf(m_enumValues, enumValue);
                         break;
                     default:
                         m_boolValue = (bool)value;
