@@ -4,11 +4,16 @@ namespace cookie.Cheats
     {
         protected readonly CheatEditor m_cheatEditor = null;
 
-        public View(CheatEditor cheatEditor)
-        {
-            m_cheatEditor = cheatEditor;
-        }
+        protected View(CheatEditor cheatEditor) => m_cheatEditor = cheatEditor;
 
         public abstract void OnGUI();
+
+        public virtual void Activate()
+        {
+        }
+
+        public virtual void Deactivate()
+        {
+        }
     }
 }

@@ -63,6 +63,14 @@ namespace cookie.Cheats
             _ =  HandleMessages();
         }
 
+        private void ChangeState(State state)
+        {
+            if(state == m_currentState) return;
+            m_states[m_currentState].Deactivate();
+            m_currentState = state;
+            m_states[m_currentState].Activate();
+        }
+
         private void OnGUI()
         {
             try
@@ -72,7 +80,7 @@ namespace cookie.Cheats
             }
             catch (Exception)
             {
-                m_currentState = State.ConnectionList;
+                ChangeState(State.ConnectionList);
             }
         }
 
@@ -124,14 +132,14 @@ namespace cookie.Cheats
 
         private async void DiscoverServers()
         {
-            m_currentState = State.Discovering;
+            ChangeState(State.Discovering);
             Repaint();
             
             var discoveredServer = await SendDiscoverServerBroadcast();
             m_discoveredServer.Clear();
             m_discoveredServer.AddRange(discoveredServer);
             
-            m_currentState = State.ConnectionList;
+            ChangeState(State.ConnectionList);
             Repaint();
         }
         
@@ -141,7 +149,7 @@ namespace cookie.Cheats
             await socket.ConnectAsync(endPoint);
             m_connection = new Connection(socket);
             
-            m_currentState = State.Cheats;
+            ChangeState(State.Cheats);
             Repaint();
         }
         
