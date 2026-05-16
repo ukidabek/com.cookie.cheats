@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace cookie.Cheats.Network
 {
-    public class Server : NetworkUser
+    public class Server : IDisposable
     {
         public const string DiscoverMessage = "DISCOVER_SERVER";
         
@@ -25,6 +25,7 @@ namespace cookie.Cheats.Network
         
         private readonly IPAddress m_listenAddress = null;
         public readonly ConcurrentQueue<Message> ReceiveQueue = new ConcurrentQueue<Message>();
+        public readonly ConcurrentQueue<ServerEvent> EventQueue = new ConcurrentQueue<ServerEvent>();
         private ConcurrentDictionary<Socket, Connection> Connections = new ConcurrentDictionary<Socket, Connection>();
         
         private readonly object m_lock = new object();
@@ -103,6 +104,7 @@ namespace cookie.Cheats.Network
                         foreach (var message in m_helloMessagesList) 
                             connection.SendQueue.Enqueue(message);
                     }
+                    EventQueue.Enqueue(new NewConnectionEvent());
                 }
                 catch (ObjectDisposedException)
                 {
@@ -146,7 +148,7 @@ namespace cookie.Cheats.Network
             }
         }
         
-        public override void Dispose()
+        public virtual void Dispose()
         {
             foreach (var connection in Connections.Values) 
                 connection.Dispose();
