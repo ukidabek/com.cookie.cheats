@@ -36,7 +36,7 @@ namespace cookie.Cheats.Server
                 cheat =>
                 {
                     if (cheat is not IValueCheat valueCheat) return false;
-                    // if (!valueCheat.IsDirty) return false;
+                    if (!valueCheat.IsDirty) return false;
 
                     var message = new Message(MessagesIDs.UpdateCheat, new []
                     {
@@ -60,24 +60,50 @@ namespace cookie.Cheats.Server
 
         private void Update()
         {
-            var queue = Server.ReceiveQueue;
-            if (queue.Any() && queue.TryDequeue(out var message))
+            HandleMessages();
+            HandleEvents();
+            m_itemProcessor.Process();
+        }
+
+        private void HandleEvents()
+        {
+            var events = Server.EventQueue;
+            while (events.Any())
             {
-                switch (message.ID)
+                if(!events.TryDequeue(out var @event)) continue;
+
+                switch (@event)
                 {
-                    case MessagesIDs.UpdateCheat:
-                        if (message.Payload is not CheatPayload cheatPayload || 
-                            !m_itemProcessor.TryGetValue(cheatPayload.ID, out var cheat) || 
-                            !m_cheatChandlerDictionary.TryGetValue(cheat.GetType(), out var cheatHandler))
+                    case NewConnectionEvent:
+                        foreach (var cheat in m_itemProcessor.Values)
                         {
-                            break;
+                            if(cheat is not ValueCheat valueCheat) continue;
+                            valueCheat.MartAsDirty();
                         }
-                        
-                        cheatHandler.Handle(cheat, cheatPayload);
                         break;
                 }
             }
-            m_itemProcessor.Process();
+        }
+
+        private void HandleMessages()
+        {
+            var queue = Server.ReceiveQueue;
+            
+            if (!queue.Any() || !queue.TryDequeue(out var message)) return;
+            
+            switch (message.ID)
+            {
+                case MessagesIDs.UpdateCheat:
+                    if (message.Payload is not CheatPayload cheatPayload || 
+                        !m_itemProcessor.TryGetValue(cheatPayload.ID, out var cheat) || 
+                        !m_cheatChandlerDictionary.TryGetValue(cheat.GetType(), out var cheatHandler))
+                    {
+                        break;
+                    }
+                        
+                    cheatHandler.Handle(cheat, cheatPayload);
+                    break;
+            }
         }
 
         private void OnDestroy() => Server?.Dispose();

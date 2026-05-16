@@ -101,6 +101,7 @@ namespace cookie.Cheats
                             var id = Convert.ToInt32(data[0]);
                             if (!m_editorCheats.TryGetValue(id, out var cheat)) break;
                             cheat.SetValue(data[1]);
+                            Repaint();
                             break;
                     }
                 }

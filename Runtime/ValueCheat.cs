@@ -76,7 +76,15 @@ namespace cookie.Cheats
 
         public void Set(object value)
         {
-            value = Convert.ChangeType(value, ValueType);
+            if (ValueType.IsEnum) 
+            {
+                var underlying = Enum.GetUnderlyingType(ValueType);
+                var converted = Convert.ChangeType(value, underlying); 
+                value = Enum.ToObject(ValueType, converted);
+            }
+            else
+                value = Convert.ChangeType(value, ValueType);
+
             switch (MemberInfo)
             {
                 case FieldInfo fieldInfo:
